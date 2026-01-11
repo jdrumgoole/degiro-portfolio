@@ -86,9 +86,10 @@ def clean(c):
     files_to_remove = [
         ".degiro-portfolio.pid",
         "degiro-portfolio.log",
-        "stockchart.db",  # Keep for backwards compatibility
-        ".stockchart.pid",  # Keep for backwards compatibility
-        "stockchart.log",   # Keep for backwards compatibility
+        "degiro-portfolio.db",
+        "stockchart.db",  # Legacy database name
+        ".stockchart.pid",  # Legacy PID file
+        "stockchart.log",   # Legacy log file
         "examine_data.py"
     ]
 

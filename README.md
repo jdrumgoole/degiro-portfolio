@@ -97,7 +97,7 @@ degiro-portfolio/
 ├── tasks.py                 # Invoke tasks for automation
 ├── Transactions.xlsx        # Your transaction data file
 ├── example_data.xlsx        # Example demo data (AI stocks)
-├── stockchart.db            # SQLite database (generated)
+├── degiro-portfolio.db            # SQLite database (generated)
 └── pyproject.toml           # Project dependencies
 ```
 

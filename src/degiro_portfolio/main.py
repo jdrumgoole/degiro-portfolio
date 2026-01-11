@@ -19,7 +19,7 @@ from src.degiro_portfolio.database import get_db, Stock, Transaction, StockPrice
 # via ticker_resolver.py. Tickers are now stored in the database and resolved
 # automatically during import. See ticker_resolver.py for manual fallback mappings.
 
-app = FastAPI(title="Stock Price Visualizer", version="0.1.0")
+app = FastAPI(title="DEGIRO Portfolio", version="0.1.0")
 
 # Mount static files
 static_dir = os.path.join(os.path.dirname(__file__), "static")

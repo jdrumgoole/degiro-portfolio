@@ -254,7 +254,7 @@ Available tasks:
 - **Port**: 8000
 - **PID File**: `.degiro-portfolio.pid`
 - **Log File**: `degiro-portfolio.log`
-- **Database**: `stockchart.db`
+- **Database**: `degiro-portfolio.db`
 
 ## Tips
 

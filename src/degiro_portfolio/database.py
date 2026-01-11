@@ -6,7 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
 # Database in project root (two directories up from this file)
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "stockchart.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "degiro-portfolio.db")
 DATABASE_URL = f"sqlite:///{os.path.abspath(DB_PATH)}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
