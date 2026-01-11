@@ -19,11 +19,12 @@ class Stock(Base):
     __tablename__ = "stocks"
 
     id = Column(Integer, primary_key=True, index=True)
-    symbol = Column(String, unique=True, index=True)
+    symbol = Column(String, unique=True, index=True)  # Original symbol from transaction data
     name = Column(String)
     isin = Column(String, unique=True, index=True)
     exchange = Column(String)
     currency = Column(String, default="EUR")  # Native trading currency
+    yahoo_ticker = Column(String, nullable=True)  # Resolved Yahoo Finance ticker symbol
 
     transactions = relationship("Transaction", back_populates="stock")
     prices = relationship("StockPrice", back_populates="stock")

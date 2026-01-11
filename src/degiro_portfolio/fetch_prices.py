@@ -7,41 +7,41 @@ except ModuleNotFoundError:
     from database import SessionLocal, Stock, StockPrice, Transaction
 from sqlalchemy import func
 
-# Manual mapping of ISIN to Yahoo Finance ticker symbols
-# Format: ISIN -> {currency: ticker}
-ISIN_TO_TICKER = {
-    "SE0021921269": {"SEK": "SAAB-B.ST", "EUR": "SAAB-B.ST"},  # SAAB AB - Stockholm (SEK)
-    "NL0000687663": {"USD": "AER"},  # AERCAP HOLDINGS
-    "NL0010273215": {"EUR": "ASML"},  # ASML HOLDING
-    "IT0003856405": {"EUR": "LDO.MI"},  # LEONARDO SPA
-    "NL0000235190": {"EUR": "AIR.PA"},  # AIRBUS GROUP
-    "DE0007030009": {"EUR": "RHM.DE"},  # RHEINMETALL AG
-    "US82669G1040": {"USD": "SBNY"},  # SIGNATURE BANK (delisted)
-    # AI/Tech stocks
-    "US67066G1040": {"USD": "NVDA"},  # NVIDIA CORP
-    "US5949181045": {"USD": "MSFT"},  # MICROSOFT CORP
-    "US02079K3059": {"USD": "GOOGL"},  # ALPHABET INC-CL A
-    "US0079031078": {"USD": "AMD"},  # ADVANCED MICRO DEVICES
-    "US30303M1027": {"USD": "META"},  # META PLATFORMS INC
-}
+# NOTE: Hard-coded ticker mappings have been replaced by automatic resolution
+# via ticker_resolver.py. Tickers are now stored in the database and resolved
+# automatically during import. See ticker_resolver.py for manual fallback mappings.
 
 def get_ticker_for_stock(stock):
-    """Get Yahoo Finance ticker for a stock in its native currency."""
-    isin_map = ISIN_TO_TICKER.get(stock.isin)
-    if not isin_map:
-        print(f"Warning: No ticker mapping for {stock.name} ({stock.isin})")
+    """
+    Get Yahoo Finance ticker for a stock.
+
+    Uses the ticker stored in the database (resolved during import).
+    If no ticker is stored, attempts to resolve it now.
+    """
+    # Use stored ticker if available
+    if stock.yahoo_ticker:
+        return stock.yahoo_ticker
+
+    # If no ticker stored, try to resolve it now
+    print(f"  ⚠️  No ticker found for {stock.name} ({stock.isin}), attempting to resolve...")
+
+    try:
+        from ticker_resolver import get_ticker_for_stock as resolve_ticker
+    except ImportError:
+        from src.degiro_portfolio.ticker_resolver import get_ticker_for_stock as resolve_ticker
+
+    ticker = resolve_ticker(stock.isin, stock.name, stock.currency)
+
+    if ticker:
+        # Store the resolved ticker in the database for future use
+        stock.yahoo_ticker = ticker
+        print(f"  ✓ Resolved and stored ticker: {ticker}")
+        return ticker
+    else:
+        print(f"  ✗ Could not resolve ticker for {stock.name}")
+        print(f"     You may need to manually add the ticker to the database or")
+        print(f"     add a manual mapping in src/degiro_portfolio/ticker_resolver.py")
         return None
-
-    # Get ticker for the stock's native currency
-    ticker = isin_map.get(stock.currency)
-    if not ticker and isinstance(isin_map, dict):
-        # Fallback to first available ticker
-        ticker = list(isin_map.values())[0]
-    elif isinstance(isin_map, str):
-        # Old format compatibility
-        ticker = isin_map
-
-    return ticker
 
 def fetch_stock_prices(stock, session, start_date=None, end_date=None):
     """Fetch historical prices for a stock."""

@@ -15,21 +15,9 @@ import yfinance as yf
 
 from src.degiro_portfolio.database import get_db, Stock, Transaction, StockPrice, Index, IndexPrice
 
-# Manual mapping of ISIN to Yahoo Finance ticker symbols
-ISIN_TO_TICKER = {
-    "SE0021921269": {"SEK": "SAAB-B.ST", "EUR": "SAAB-B.ST"},
-    "NL0000687663": {"USD": "AER"},
-    "NL0010273215": {"EUR": "ASML"},
-    "IT0003856405": {"EUR": "LDO.MI"},
-    "NL0000235190": {"EUR": "AIR.PA"},
-    "DE0007030009": {"EUR": "RHM.DE"},
-    # AI/Tech stocks
-    "US67066G1040": {"USD": "NVDA"},  # NVIDIA CORP
-    "US5949181045": {"USD": "MSFT"},  # MICROSOFT CORP
-    "US02079K3059": {"USD": "GOOGL"},  # ALPHABET INC-CL A
-    "US0079031078": {"USD": "AMD"},  # ADVANCED MICRO DEVICES
-    "US30303M1027": {"USD": "META"},  # META PLATFORMS INC
-}
+# NOTE: Hard-coded ticker mappings have been replaced by automatic resolution
+# via ticker_resolver.py. Tickers are now stored in the database and resolved
+# automatically during import. See ticker_resolver.py for manual fallback mappings.
 
 app = FastAPI(title="Stock Price Visualizer", version="0.1.0")
 
@@ -475,18 +463,11 @@ async def update_market_data(db: Session = Depends(get_db)):
 
         for stock in stocks:
             try:
-                # Get ticker symbol
-                isin_map = ISIN_TO_TICKER.get(stock.isin)
-                if not isin_map:
-                    errors.append(f"No ticker mapping for {stock.name}")
-                    continue
-
-                ticker_symbol = isin_map.get(stock.currency)
-                if not ticker_symbol and isinstance(isin_map, dict):
-                    ticker_symbol = list(isin_map.values())[0]
+                # Get ticker symbol from database
+                ticker_symbol = stock.yahoo_ticker
 
                 if not ticker_symbol:
-                    errors.append(f"No ticker found for {stock.name}")
+                    errors.append(f"No ticker resolved for {stock.name} (ISIN: {stock.isin})")
                     continue
 
                 # Get latest price data (last 7 days to ensure we have recent data)

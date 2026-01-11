@@ -4,8 +4,10 @@ from datetime import datetime
 from collections import Counter
 try:
     from src.degiro_portfolio.database import SessionLocal, init_db, Stock, Transaction
+    from src.degiro_portfolio.ticker_resolver import get_ticker_for_stock
 except ModuleNotFoundError:
     from database import SessionLocal, init_db, Stock, Transaction
+    from ticker_resolver import get_ticker_for_stock
 
 
 def parse_date(date_str, time_str):
@@ -31,7 +33,7 @@ def determine_native_currency(df, product):
 
 
 def get_or_create_stock(session, df, product, isin, exchange):
-    """Get existing stock or create new one with native currency."""
+    """Get existing stock or create new one with native currency and resolved ticker."""
     stock = session.query(Stock).filter_by(isin=isin).first()
     if not stock:
         # Determine native currency for this stock
@@ -40,17 +42,34 @@ def get_or_create_stock(session, df, product, isin, exchange):
         # Extract a reasonable symbol from the product name
         symbol = product.split()[0].upper()
 
+        # Attempt to resolve Yahoo Finance ticker automatically
+        yahoo_ticker = get_ticker_for_stock(isin, product, native_currency)
+
         stock = Stock(
             symbol=symbol,
             name=product,
             isin=isin,
             exchange=exchange,
-            currency=native_currency
+            currency=native_currency,
+            yahoo_ticker=yahoo_ticker
         )
         session.add(stock)
         session.flush()
 
-        print(f"  Created stock: {product} (Native currency: {native_currency})")
+        if yahoo_ticker:
+            print(f"  Created stock: {product} (Native currency: {native_currency}, Ticker: {yahoo_ticker})")
+        else:
+            print(f"  Created stock: {product} (Native currency: {native_currency}, Ticker: NOT RESOLVED)")
+            print(f"    WARNING: Could not automatically resolve Yahoo Finance ticker for ISIN {isin}")
+            print(f"    Price fetching will not work until ticker is manually added to the database")
+
+    elif stock and not stock.yahoo_ticker:
+        # Stock exists but ticker wasn't resolved - try to resolve it now
+        yahoo_ticker = get_ticker_for_stock(stock.isin, stock.name, stock.currency)
+        if yahoo_ticker:
+            stock.yahoo_ticker = yahoo_ticker
+            session.flush()
+            print(f"  Resolved ticker for {stock.name}: {yahoo_ticker}")
 
     return stock
 
