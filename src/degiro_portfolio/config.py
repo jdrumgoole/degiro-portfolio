@@ -30,6 +30,12 @@ class Config:
     # ========================================================================
     # Data Fetching Configuration
     # ========================================================================
+    # Data provider: 'yahoo' or 'twelvedata'
+    PRICE_DATA_PROVIDER = os.environ.get('PRICE_DATA_PROVIDER', 'yahoo')
+
+    # Twelve Data API key (get free key at https://twelvedata.com/)
+    TWELVEDATA_API_KEY = os.environ.get('TWELVEDATA_API_KEY', '')
+
     # How far back to fetch price data initially
     INITIAL_FETCH_PERIOD = os.environ.get('INITIAL_FETCH_PERIOD', 'max')
 

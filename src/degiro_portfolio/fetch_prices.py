@@ -3,8 +3,12 @@ import yfinance as yf
 from datetime import datetime, timedelta
 try:
     from src.degiro_portfolio.database import SessionLocal, Stock, StockPrice, Transaction
+    from src.degiro_portfolio.config import Config
+    from src.degiro_portfolio.price_fetchers import get_price_fetcher
 except ModuleNotFoundError:
     from database import SessionLocal, Stock, StockPrice, Transaction
+    from config import Config
+    from price_fetchers import get_price_fetcher
 from sqlalchemy import func
 
 # NOTE: Hard-coded ticker mappings have been replaced by automatic resolution
@@ -44,7 +48,7 @@ def get_ticker_for_stock(stock):
         return None
 
 def fetch_stock_prices(stock, session, start_date=None, end_date=None):
-    """Fetch historical prices for a stock."""
+    """Fetch historical prices for a stock using configured data provider."""
     ticker_symbol = get_ticker_for_stock(stock)
     if not ticker_symbol:
         return 0
@@ -62,12 +66,20 @@ def fetch_stock_prices(stock, session, start_date=None, end_date=None):
     if not end_date:
         end_date = datetime.now().date()
 
-    print(f"Fetching prices for {stock.name} ({ticker_symbol}) in {stock.currency}")
-    print(f"  Period: {start_date} to {end_date}")
+    # Convert dates to datetime for fetcher
+    if not isinstance(start_date, datetime):
+        start_date = datetime.combine(start_date, datetime.min.time())
+    if not isinstance(end_date, datetime):
+        end_date = datetime.combine(end_date, datetime.max.time())
+
+    provider = Config.PRICE_DATA_PROVIDER
+    print(f"Fetching prices for {stock.name} ({ticker_symbol}) in {stock.currency} [Provider: {provider}]")
+    print(f"  Period: {start_date.date()} to {end_date.date()}")
 
     try:
-        ticker = yf.Ticker(ticker_symbol)
-        hist = ticker.history(start=start_date, end=end_date)
+        # Get the appropriate price fetcher
+        fetcher = get_price_fetcher()
+        hist = fetcher.fetch_prices(ticker_symbol, start_date, end_date)
 
         if hist.empty:
             print(f"  ❌ No price data available")
@@ -87,11 +99,11 @@ def fetch_stock_prices(stock, session, start_date=None, end_date=None):
             price = StockPrice(
                 stock_id=stock.id,
                 date=date,
-                open=float(row['Open']),
-                high=float(row['High']),
-                low=float(row['Low']),
-                close=float(row['Close']),
-                volume=int(row['Volume']),
+                open=float(row['open']),
+                high=float(row['high']),
+                low=float(row['low']),
+                close=float(row['close']),
+                volume=int(row['volume']),
                 currency=stock.currency  # Store prices in native currency
             )
             session.add(price)

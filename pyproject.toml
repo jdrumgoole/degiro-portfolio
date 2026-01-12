@@ -12,6 +12,7 @@ dependencies = [
     "plotly>=5.24.0",
     "sqlalchemy>=2.0.0",
     "python-multipart>=0.0.21",
+    "twelvedata>=1.2.25",
 ]
 
 [project.optional-dependencies]
