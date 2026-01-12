@@ -65,3 +65,4 @@ examine_data.py
 
 # Lock files (optional - some prefer to commit these)
 # uv.lock
+.env

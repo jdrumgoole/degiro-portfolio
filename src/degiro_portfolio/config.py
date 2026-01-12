@@ -6,6 +6,10 @@ more maintainable and adaptable to different data sources.
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class Config:
