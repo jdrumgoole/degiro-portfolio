@@ -41,6 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated API endpoint documentation
 - Added notes about clickable links and compact design
 
+### Example Data
+- Extended example_data.xlsx to include European Tech Stocks alongside US AI stocks:
+  - ASML (Netherlands) - Semiconductor equipment
+  - SAP (Germany) - Enterprise software
+  - Infineon (Germany) - Semiconductors
+  - Nokia (Finland) - Telecommunications
+  - Ericsson (Sweden) - Telecommunications
+  - STMicroelectronics (France) - Semiconductors
+- Total example transactions increased from 14 to 28
+- Demonstrates multi-currency support (EUR, USD, SEK) and multi-exchange functionality
+
 ## [0.1.0] - 2025-01-XX
 
 ### Initial Release

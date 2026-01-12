@@ -119,7 +119,7 @@ degiro-portfolio/
 
 ## Example Data
 
-The repository includes `example_data.xlsx` with sample AI stock transactions for demonstration purposes. To try the application with this demo data:
+The repository includes `example_data.xlsx` with sample AI and European tech stock transactions for demonstration purposes. To try the application with this demo data:
 
 ```bash
 # Import the example data
@@ -136,11 +136,21 @@ uv run python src/degiro_portfolio/fetch_indices.py
 ```
 
 The example portfolio includes:
+
+**US Tech Stocks:**
 - NVIDIA (NVDA) - 129 shares across 4 purchases
 - Microsoft (MSFT) - 30 shares across 3 purchases
 - Meta (META) - 68 shares across 2 purchases
 - Alphabet/Google (GOOGL) - 57 shares across 2 purchases
 - AMD - 97 shares across 3 purchases
+
+**European Tech Stocks:**
+- ASML (Netherlands) - 33 shares across 3 purchases
+- SAP (Germany) - 75 shares across 2 purchases
+- Infineon (Germany) - 400 shares across 3 purchases
+- Nokia (Finland) - 900 shares across 2 purchases
+- Ericsson (Sweden) - 1400 shares across 2 purchases
+- STMicroelectronics (France) - 240 shares across 2 purchases
 
 ## Detailed Setup
 
