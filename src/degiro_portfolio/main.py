@@ -415,7 +415,7 @@ async def get_portfolio_performance(db: Session = Depends(get_db)):
 async def get_portfolio_valuation_history(db: Session = Depends(get_db)):
     """
     Get historical portfolio valuation over time.
-    Returns dates, cumulative invested capital, and portfolio values (all in EUR).
+    Returns dates, net invested capital (buys - sells), and portfolio values (all in EUR).
     """
     # Get all transactions ordered by date
     all_transactions = db.query(Transaction).order_by(Transaction.date).all()
@@ -447,12 +447,18 @@ async def get_portfolio_valuation_history(db: Session = Depends(get_db)):
     value_series = []
 
     for (price_date,) in price_dates:
-        # Calculate cumulative invested (buy transactions only)
-        cumulative_invested = sum(
+        # Calculate net invested (buys minus sells)
+        buys = sum(
             abs(t.total_eur)
             for t in all_transactions
             if t.date <= price_date and t.quantity > 0
         )
+        sells = sum(
+            abs(t.total_eur)
+            for t in all_transactions
+            if t.date <= price_date and t.quantity < 0
+        )
+        net_invested = buys - sells
 
         # Calculate portfolio value
         total_value_eur = 0
@@ -497,7 +503,7 @@ async def get_portfolio_valuation_history(db: Session = Depends(get_db)):
             total_value_eur += holdings * price_eur
 
         dates.append(price_date.strftime("%Y-%m-%d"))
-        invested_series.append(round(cumulative_invested, 2))
+        invested_series.append(round(net_invested, 2))
         value_series.append(round(total_value_eur, 2))
 
     return {
