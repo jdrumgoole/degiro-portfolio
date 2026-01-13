@@ -462,16 +462,16 @@ async def get_portfolio_valuation_history(db: Session = Depends(get_db)):
     value_series = []
 
     for (price_date,) in price_dates:
-        # Calculate net invested (buys minus sells)
+        # Calculate net invested (buys minus sells) for CURRENTLY HELD stocks only
         buys = sum(
             abs(t.total_eur)
             for t in all_transactions
-            if t.date <= price_date and t.quantity > 0
+            if t.date <= price_date and t.quantity > 0 and t.stock_id in current_stock_ids
         )
         sells = sum(
             abs(t.total_eur)
             for t in all_transactions
-            if t.date <= price_date and t.quantity < 0
+            if t.date <= price_date and t.quantity < 0 and t.stock_id in current_stock_ids
         )
         net_invested = buys - sells
 
