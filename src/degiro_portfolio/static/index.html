@@ -878,19 +878,34 @@
             const prices = data.prices;
             if (prices.length === 0) return;
 
-            const currency = data.stock.currency;
+            // Use actual price currency from exchange data, not DEGIRO transaction currency
+            const currency = prices.length > 0 && prices[0].currency
+                ? prices[0].currency
+                : data.stock.currency;
             const latestPrice = prices[prices.length - 1].close;
 
-            // Find the first purchase date
-            const buyTransactions = data.transactions.filter(t => t.transaction_type === 'buy');
+            // Find the first purchase date of CURRENT holdings
+            // Track running shares to find when current position was started
             let oldestPrice = prices[0].close;
+            let runningShares = 0;
+            let firstPurchaseOfCurrentBatch = null;
 
-            if (buyTransactions.length > 0) {
-                // Sort by date to find the earliest purchase
-                const firstPurchaseDate = buyTransactions[0].date;
+            for (const t of data.transactions) {
+                runningShares += t.quantity;
 
-                // Find the price closest to or on the first purchase date
-                const purchasePrice = prices.find(p => p.date >= firstPurchaseDate);
+                // Reset when sold out completely
+                if (runningShares === 0 && t.quantity < 0) {
+                    firstPurchaseOfCurrentBatch = null;
+                }
+                // Track first purchase when starting to accumulate
+                else if (!firstPurchaseOfCurrentBatch && t.quantity > 0 && runningShares > 0) {
+                    firstPurchaseOfCurrentBatch = t;
+                }
+            }
+
+            if (firstPurchaseOfCurrentBatch) {
+                // Find the price on or after the first purchase of current holdings
+                const purchasePrice = prices.find(p => p.date >= firstPurchaseOfCurrentBatch.date);
                 if (purchasePrice) {
                     oldestPrice = purchasePrice.close;
                 }
