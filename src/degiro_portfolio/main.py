@@ -512,7 +512,7 @@ async def upload_transactions(file: UploadFile = File(...), db: Session = Depend
 
             db.commit()
 
-            # After successful import, fetch prices for stocks that need them
+            # After successful import, fetch historical prices for NEW stocks and update latest prices
             total_prices = 0
             stocks_with_prices = 0
 
@@ -522,7 +522,7 @@ async def upload_transactions(file: UploadFile = File(...), db: Session = Depend
                 for stock_id in stocks_to_fetch_prices:
                     stock = db.query(Stock).filter_by(id=stock_id).first()
                     if stock:
-                        # Only fetch if we haven't already fetched for this stock
+                        # Fetch historical prices if we haven't already fetched for this stock
                         existing_prices = db.query(StockPrice).filter_by(stock_id=stock.id).count()
                         if existing_prices == 0:
                             price_count = fetch_stock_prices(stock, db)
@@ -530,11 +530,63 @@ async def upload_transactions(file: UploadFile = File(...), db: Session = Depend
                                 total_prices += price_count
                                 stocks_with_prices += 1
 
+            # Also refresh live prices if FMP is configured
+            live_prices_updated = 0
+            if Config.PRICE_DATA_PROVIDER == 'fmp':
+                from .price_fetchers import FMPFetcher
+                fetcher = FMPFetcher()
+
+                # Get currently held stocks
+                all_stocks = db.query(Stock).all()
+                for stock in all_stocks:
+                    total_qty = db.query(func.sum(Transaction.quantity)).filter_by(
+                        stock_id=stock.id
+                    ).scalar() or 0
+                    if total_qty > 0 and stock.yahoo_ticker:
+                        # Fetch latest quote
+                        quote = fetcher.fetch_latest_quote(stock.yahoo_ticker)
+                        if quote and quote.get('price'):
+                            # Update or insert latest price in database
+                            from datetime import datetime
+                            quote_date = datetime.strptime(quote['timestamp'], '%Y-%m-%d') if isinstance(quote['timestamp'], str) else quote['timestamp']
+
+                            # Check if we already have this date
+                            existing = db.query(StockPrice).filter_by(
+                                stock_id=stock.id,
+                                date=quote_date
+                            ).first()
+
+                            if existing:
+                                # Update existing record
+                                existing.open = quote['open']
+                                existing.high = quote['high']
+                                existing.low = quote['low']
+                                existing.close = quote['price']
+                                existing.volume = quote['volume']
+                            else:
+                                # Insert new record
+                                new_price = StockPrice(
+                                    stock_id=stock.id,
+                                    date=quote_date,
+                                    open=quote['open'],
+                                    high=quote['high'],
+                                    low=quote['low'],
+                                    close=quote['price'],
+                                    volume=quote['volume'],
+                                    currency=stock.currency
+                                )
+                                db.add(new_price)
+
+                            live_prices_updated += 1
+                            db.commit()
+
             message = f"Successfully imported {new_transactions} new transactions"
             if updated_stocks > 0:
                 message += f" for {updated_stocks} new stocks"
             if total_prices > 0:
-                message += f" and fetched {total_prices} price records"
+                message += f", fetched {total_prices} historical price records"
+            if live_prices_updated > 0:
+                message += f", and updated {live_prices_updated} live prices"
 
             return JSONResponse(
                 content={
