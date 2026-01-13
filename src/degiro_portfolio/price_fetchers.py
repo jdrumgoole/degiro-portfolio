@@ -76,14 +76,20 @@ class FMPFetcher(PriceFetcher):
             ASML.AS -> ASML
             IFX.DE -> IFNNY (Infineon ADR)
             ERIC-B.ST -> ERIC
+            SAAB-B.ST -> SAAB
             NVDA -> NVDA (no change for US stocks)
         """
         # Special mappings for stocks that use different symbols on FMP
+        # FMP uses US ADR/OTC symbols for international stocks
         special_mappings = {
             'IFX': 'IFNNY',      # Infineon -> US ADR
             'ERIC-B': 'ERIC',    # Ericsson B-shares -> base symbol
             'NOKIA': 'NOK',      # Nokia ADR
             'STM': 'STM',        # STMicroelectronics ADR (already correct)
+            'SAAB-B': 'SAABY',   # SAAB B-shares -> US ADR
+            'SAAB': 'SAABY',     # SAAB -> US ADR
+            'LDO': 'FINMY',      # Leonardo -> US ADR (Finmeccanica legacy name)
+            'RHM': 'RNMBY',      # Rheinmetall -> US ADR
         }
 
         # Common European exchange suffixes to remove
@@ -109,6 +115,13 @@ class FMPFetcher(PriceFetcher):
         # Then check if we have a special mapping
         if base_ticker in special_mappings:
             return special_mappings[base_ticker]
+
+        # If no special mapping, also strip common share class suffixes (-A, -B, -C)
+        # This handles cases like "XYZ-B" -> "XYZ" when there's no explicit mapping
+        if '-' in base_ticker:
+            parts = base_ticker.rsplit('-', 1)
+            if len(parts) == 2 and parts[1] in ['A', 'B', 'C']:
+                base_ticker = parts[0]
 
         # Return the base ticker
         return base_ticker
