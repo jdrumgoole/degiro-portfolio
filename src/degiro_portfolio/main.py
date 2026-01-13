@@ -498,8 +498,8 @@ async def get_portfolio_valuation_history(db: Session = Depends(get_db)):
             if not price_record:
                 continue
 
-            # Convert price to EUR
-            if stock.currency == 'EUR' or price_record.currency == 'EUR':
+            # Convert price to EUR using actual exchange currency, not DEGIRO transaction currency
+            if price_record.currency == 'EUR':
                 price_eur = price_record.close
             else:
                 # Get most recent exchange rate from transactions
