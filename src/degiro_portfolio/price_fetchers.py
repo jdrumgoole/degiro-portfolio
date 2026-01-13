@@ -250,8 +250,52 @@ class TwelveDataFetcher(PriceFetcher):
 
         self.client = TDClient(apikey=self.api_key)
 
+    def _normalize_ticker(self, ticker: str) -> str:
+        """
+        Convert Yahoo Finance ticker format to Twelve Data format.
+
+        Twelve Data uses different ticker formats for European stocks.
+        Note: Hyphens in share classes become dots (SAAB-B -> SAAB.B)
+
+        Examples:
+            SAAB-B.ST -> SAAB.B (Stockholm, dot notation)
+            LDO.MI -> LDO (Milan/MTA)
+            RHM.DE -> RHM (Frankfurt/XETR)
+            ASML.AS -> ASML (Amsterdam/Euronext)
+            AIR.PA -> AIR (Paris/Euronext)
+            AER -> AER (US stocks, no change)
+        """
+        # Specific mappings for known stocks
+        ticker_mappings = {
+            'SAAB-B.ST': 'SAAB.B',     # Stockholm: convert hyphen to dot
+            'LDO.MI': 'LDO',           # Milan: simple symbol
+            'RHM.DE': 'RHM',           # Frankfurt: simple symbol
+            'ASML.AS': 'ASML',         # Amsterdam: simple symbol
+            'AIR.PA': 'AIR',           # Paris: simple symbol
+        }
+
+        # Check for specific mappings first
+        if ticker in ticker_mappings:
+            return ticker_mappings[ticker]
+
+        # General rule: Remove exchange suffix and convert hyphens to dots for share classes
+        exchange_suffixes = ['.ST', '.MI', '.DE', '.F', '.AS', '.PA', '.L', '.MC', '.HE']
+
+        for suffix in exchange_suffixes:
+            if ticker.endswith(suffix):
+                base_ticker = ticker[:-len(suffix)]
+                # Convert hyphens to dots (for share classes like A-shares, B-shares)
+                base_ticker = base_ticker.replace('-', '.')
+                return base_ticker
+
+        # No exchange suffix, return as-is (US stocks)
+        return ticker
+
     def fetch_prices(self, ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
         """Fetch from Twelve Data API."""
+        # Convert ticker to Twelve Data format
+        td_ticker = self._normalize_ticker(ticker)
+
         # Twelve Data uses different date format
         start_str = start_date.strftime('%Y-%m-%d')
         end_str = end_date.strftime('%Y-%m-%d')
@@ -263,7 +307,7 @@ class TwelveDataFetcher(PriceFetcher):
         try:
             # Fetch time series data
             ts = self.client.time_series(
-                symbol=ticker,
+                symbol=td_ticker,
                 interval="1day",
                 outputsize=outputsize,
                 start_date=start_str,
@@ -288,7 +332,7 @@ class TwelveDataFetcher(PriceFetcher):
             return df[['open', 'high', 'low', 'close', 'volume']]
 
         except Exception as e:
-            print(f"  ❌ Twelve Data error for {ticker}: {e}")
+            print(f"  ❌ Twelve Data error for {td_ticker} (from {ticker}): {e}")
             return pd.DataFrame()
 
 
