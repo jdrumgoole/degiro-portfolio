@@ -547,7 +547,6 @@ async def upload_transactions(file: UploadFile = File(...), db: Session = Depend
                         quote = fetcher.fetch_latest_quote(stock.yahoo_ticker)
                         if quote and quote.get('price'):
                             # Update or insert latest price in database
-                            from datetime import datetime
                             quote_date = datetime.strptime(quote['timestamp'], '%Y-%m-%d') if isinstance(quote['timestamp'], str) else quote['timestamp']
 
                             # Check if we already have this date
