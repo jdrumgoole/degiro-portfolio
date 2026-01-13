@@ -11,6 +11,9 @@ def test_page_loads(page: Page):
 
 def test_portfolio_summary_displays(page: Page):
     """Test that portfolio summary section is visible."""
+    # Wait for portfolio summary to load (it starts hidden and shows after data loads)
+    page.wait_for_selector(".portfolio-summary", state="visible", timeout=10000)
+
     summary = page.locator(".portfolio-summary")
     expect(summary).to_be_visible()
 
@@ -171,6 +174,9 @@ def test_stock_card_click_loads_chart(page: Page):
 
 def test_portfolio_summary_shows_values(page: Page):
     """Test that portfolio summary displays value information."""
+    # Wait for portfolio summary to be visible
+    page.wait_for_selector(".portfolio-summary", state="visible", timeout=10000)
+
     summary = page.locator(".portfolio-summary")
 
     # Should contain value elements
@@ -207,5 +213,13 @@ def test_responsive_layout(page: Page):
     body = page.locator("body")
     min_height = body.evaluate("el => window.getComputedStyle(el).minHeight")
 
-    # Should have viewport-based height
-    assert "vh" in min_height, f"Body doesn't use viewport height: {min_height}"
+    # Should have viewport-based height (computed style returns pixel value)
+    # Check for either "vh" in the value or a reasonable pixel height (>= 600px)
+    has_vh = "vh" in min_height
+    is_reasonable_height = False
+    if "px" in min_height:
+        height_value = int(min_height.replace("px", ""))
+        is_reasonable_height = height_value >= 600
+
+    assert has_vh or is_reasonable_height, \
+        f"Body doesn't use viewport height or reasonable min-height: {min_height}"

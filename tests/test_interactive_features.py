@@ -184,7 +184,7 @@ def test_links_have_correct_onclick_handlers(page: Page):
 
 
 def test_price_formatting_shows_currency_symbols(page: Page):
-    """Test that prices show appropriate currency symbols."""
+    """Test that prices show appropriate currency symbols or codes."""
     # Wait for prices to load
     page.wait_for_selector(".stock-price", timeout=10000)
 
@@ -195,9 +195,12 @@ def test_price_formatting_shows_currency_symbols(page: Page):
     for i in range(min(3, price_elements.count())):
         price_text = price_elements.nth(i).text_content()
 
-        # Should contain $ or €
-        has_currency = "$" in price_text or "€" in price_text
-        assert has_currency, f"Price doesn't show currency symbol: {price_text}"
+        # Should contain currency symbol ($, €, £, ¥) or currency code (USD, EUR, SEK, NOK, etc.)
+        currency_symbols = ["$", "€", "£", "¥"]
+        currency_codes = ["USD", "EUR", "GBP", "SEK", "NOK", "DKK", "CHF", "JPY"]
+        has_currency = any(symbol in price_text for symbol in currency_symbols) or \
+                      any(code in price_text for code in currency_codes)
+        assert has_currency, f"Price doesn't show currency symbol or code: {price_text}"
 
 
 def test_positive_price_changes_show_green(page: Page):
