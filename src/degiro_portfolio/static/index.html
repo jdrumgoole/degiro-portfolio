@@ -546,7 +546,7 @@
         // Load portfolio summary
         async function loadPortfolioSummary() {
             try {
-                let totalInvestment = 0;
+                let totalNetInvested = 0;
                 let currentValue = 0;
                 let stockCount = 0;
 
@@ -560,21 +560,17 @@
                     const transData = await transResp.json();
                     const priceData = await priceResp.json();
 
-                    // Calculate weighted average cost per share for CURRENTLY HELD shares
-                    const buyTransactions = transData.transactions.filter(t => t.quantity > 0);
+                    // Calculate net invested (buys minus sells)
+                    const buys = transData.transactions
+                        .filter(t => t.quantity > 0)
+                        .reduce((sum, t) => sum + Math.abs(t.total_eur), 0);
 
-                    if (buyTransactions.length > 0) {
-                        // Total amount spent on buys (in EUR)
-                        const totalSpent = buyTransactions.reduce((sum, t) => sum + Math.abs(t.total_eur), 0);
-                        // Total shares bought
-                        const totalSharesBought = buyTransactions.reduce((sum, t) => sum + t.quantity, 0);
-                        // Average cost per share
-                        const avgCostPerShare = totalSpent / totalSharesBought;
+                    const sells = transData.transactions
+                        .filter(t => t.quantity < 0)
+                        .reduce((sum, t) => sum + Math.abs(t.total_eur), 0);
 
-                        // Investment for currently held shares only
-                        const investment = avgCostPerShare * holding.shares;
-                        totalInvestment += investment;
-                    }
+                    const netInvested = buys - sells;
+                    totalNetInvested += netInvested;
 
                     // Get current price
                     if (priceData.prices.length > 0) {
@@ -589,8 +585,8 @@
                     stockCount++;
                 }
 
-                const gainLoss = currentValue - totalInvestment;
-                const gainLossPercent = totalInvestment > 0 ? ((gainLoss / totalInvestment) * 100) : 0;
+                const gainLoss = currentValue - totalNetInvested;
+                const gainLossPercent = totalNetInvested > 0 ? ((gainLoss / totalNetInvested) * 100) : 0;
 
                 // Render summary
                 const summaryHtml = `
@@ -599,8 +595,8 @@
                         <div class="summary-value">${stockCount} stocks</div>
                     </div>
                     <div class="summary-stat">
-                        <div class="summary-label">Original Investment</div>
-                        <div class="summary-value">€${totalInvestment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div class="summary-label">Net Invested</div>
+                        <div class="summary-value">€${totalNetInvested.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                     </div>
                     <div class="summary-stat">
                         <div class="summary-label">Current Value</div>
