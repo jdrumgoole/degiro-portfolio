@@ -704,19 +704,10 @@ async def upload_transactions(file: UploadFile = File(...), db: Session = Depend
 
 @app.post("/api/refresh-live-prices")
 async def refresh_live_prices(db: Session = Depends(get_db)):
-    """Fetch real-time price quotes for currently held stocks (FMP only)."""
+    """Fetch real-time price quotes for currently held stocks."""
     try:
-        # Only FMP supports real-time quotes
-        if Config.PRICE_DATA_PROVIDER != 'fmp':
-            return JSONResponse(
-                content={
-                    "success": False,
-                    "message": f"Live prices only available with FMP provider (current: {Config.PRICE_DATA_PROVIDER})"
-                }
-            )
-
-        from .price_fetchers import FMPFetcher
-        fetcher = FMPFetcher()
+        # Use Yahoo Finance for live prices (free, reliable, supports all exchanges)
+        import yfinance as yf
 
         # Get currently held stocks
         all_stocks = db.query(Stock).all()
@@ -738,24 +729,43 @@ async def refresh_live_prices(db: Session = Depends(get_db)):
                 errors.append(f"No ticker for {stock.name}")
                 continue
 
-            quote = fetcher.fetch_latest_quote(ticker_symbol)
-            if quote:
+            try:
+                # Fetch current price from Yahoo Finance
+                ticker_obj = yf.Ticker(ticker_symbol)
+                hist = ticker_obj.history(period='1d')
+
+                if hist.empty:
+                    errors.append(f"No quote for {stock.name}")
+                    continue
+
+                # Get latest data
+                latest = hist.iloc[-1]
+                prev_close = ticker_obj.info.get('previousClose', latest['Close'])
+
+                # Calculate change
+                change = latest['Close'] - prev_close
+                change_percent = (change / prev_close * 100) if prev_close else 0
+
+                # Get actual currency
+                actual_currency = ticker_obj.info.get('currency', stock.currency)
+
                 quotes.append({
                     "stock_id": stock.id,
                     "name": stock.name,
                     "symbol": stock.symbol,
                     "ticker": ticker_symbol,
-                    "price": quote['price'],
-                    "change": quote['change'],
-                    "change_percent": quote['change_percent'],
-                    "open": quote['open'],
-                    "high": quote['high'],
-                    "low": quote['low'],
-                    "volume": quote['volume'],
-                    "timestamp": quote['timestamp']
+                    "price": float(latest['Close']),
+                    "change": float(change),
+                    "change_percent": float(change_percent),
+                    "open": float(latest['Open']),
+                    "high": float(latest['High']),
+                    "low": float(latest['Low']),
+                    "volume": int(latest['Volume']),
+                    "timestamp": hist.index[-1].strftime('%Y-%m-%d'),
+                    "currency": actual_currency
                 })
-            else:
-                errors.append(f"No quote for {stock.name}")
+            except Exception as e:
+                errors.append(f"Error fetching {stock.name}: {str(e)}")
 
         return JSONResponse(
             content={

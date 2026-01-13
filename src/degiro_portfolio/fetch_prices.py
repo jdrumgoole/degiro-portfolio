@@ -99,6 +99,23 @@ def fetch_stock_prices(stock, session, start_date=None, end_date=None):
             print(f"  ❌ No price data available from any provider")
             return 0
 
+        # Detect the actual trading currency from the exchange
+        # This is important because stock.currency is from DEGIRO transactions (may be EUR),
+        # but the actual price data is in the native exchange currency (e.g., SEK for Stockholm)
+        actual_currency = stock.currency  # Default to DEGIRO's currency
+
+        # Try to get actual currency from ticker info
+        try:
+            import yfinance as yf
+            ticker_info = yf.Ticker(ticker_symbol)
+            exchange_currency = ticker_info.info.get('currency')
+            if exchange_currency:
+                actual_currency = exchange_currency
+                if actual_currency != stock.currency:
+                    print(f"  ℹ️  Price currency: {actual_currency} (DEGIRO uses {stock.currency})")
+        except Exception:
+            pass  # If we can't get currency info, use stock.currency
+
         count = 0
         for date, row in hist.iterrows():
             # Check if price already exists for this date
@@ -118,7 +135,7 @@ def fetch_stock_prices(stock, session, start_date=None, end_date=None):
                 low=float(row['low']),
                 close=float(row['close']),
                 volume=int(row['volume']),
-                currency=stock.currency  # Store prices in native currency
+                currency=actual_currency  # Store prices in actual exchange currency
             )
             session.add(price)
             count += 1
