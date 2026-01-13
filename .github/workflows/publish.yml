@@ -25,10 +25,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --all-extras
 
       - name: Install Playwright browsers
-        run: uv run playwright install chromium
+        run: uv run playwright install --with-deps chromium
 
       - name: Run tests
         run: uv run pytest
