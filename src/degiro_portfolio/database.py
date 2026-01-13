@@ -5,13 +5,27 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
-# Database in project root (two directories up from this file)
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "degiro-portfolio.db")
-DATABASE_URL = f"sqlite:///{os.path.abspath(DB_PATH)}"
+# Database configuration - check environment variable first (for testing)
+def get_database_url():
+    """Get database URL, checking environment variable each time for test isolation."""
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        # Default: Database in project root (two directories up from this file)
+        db_path = os.path.join(os.path.dirname(__file__), "..", "..", "degiro-portfolio.db")
+        database_url = f"sqlite:///{os.path.abspath(db_path)}"
+    return database_url
 
+DATABASE_URL = get_database_url()
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+def reinitialize_engine():
+    """Reinitialize the database engine (for testing)."""
+    global engine, SessionLocal, DATABASE_URL
+    DATABASE_URL = get_database_url()
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 class Stock(Base):

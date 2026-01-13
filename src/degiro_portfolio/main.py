@@ -22,7 +22,7 @@ from .price_fetchers import get_price_fetcher
 # via ticker_resolver.py. Tickers are now stored in the database and resolved
 # automatically during import. See ticker_resolver.py for manual fallback mappings.
 
-app = FastAPI(title="DEGIRO Portfolio", version="0.1.0")
+app = FastAPI(title="DEGIRO Portfolio", version="0.2.1")
 
 
 @app.on_event("startup")
@@ -199,7 +199,8 @@ async def get_stock_transactions(stock_id: int, db: Session = Depends(get_db)):
                 "price": t.price,
                 "currency": t.currency,
                 "total_eur": t.total_eur,
-                "fees_eur": t.fees_eur or 0
+                "fees_eur": t.fees_eur or 0,
+                "transaction_type": "buy" if t.quantity > 0 else "sell"
             }
             for t in transactions
         ]

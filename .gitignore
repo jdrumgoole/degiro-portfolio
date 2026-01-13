@@ -56,6 +56,9 @@ Transactions.xlsx
 htmlcov/
 tests/.test_data/
 
+# Documentation
+docs/_build/
+
 # Claude
 .claude/
 

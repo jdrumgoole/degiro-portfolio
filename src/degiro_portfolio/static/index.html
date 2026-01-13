@@ -738,6 +738,17 @@
                 document.getElementById('chart-title').textContent =
                     `${data.stock.name} (${data.stock.symbol})`;
 
+                // Check if we have price data
+                if (!data.prices || data.prices.length === 0) {
+                    document.getElementById('chart').innerHTML =
+                        '<div style="padding: 40px; text-align: center; color: #718096;">' +
+                        '<p style="font-size: 18px; margin-bottom: 10px;">📊 No price data available</p>' +
+                        '<p style="font-size: 14px;">Price history for this stock has not been fetched yet.</p>' +
+                        '</div>';
+                    document.getElementById('stats-grid').innerHTML = '';
+                    return;
+                }
+
                 renderChart(data);
                 renderStats(data);
             } catch (error) {

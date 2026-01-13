@@ -6,13 +6,13 @@ Usage:
     invoke stop          - Stop the application
     invoke restart       - Restart the application
     invoke status        - Check application status
-    invoke import-data   - Import transactions from Excel (default: Transactions.xlsx)
-    invoke load-demo     - Load demo data (example_data.xlsx)
+    invoke import-data   - Import transactions from Excel and fetch indices (default: Transactions.xlsx)
+    invoke load-demo     - Load demo data (example_data.xlsx) and fetch indices
     invoke fetch-prices  - Fetch latest stock prices
     invoke fetch-indices - Fetch market index data (S&P 500, Euro Stoxx 50)
     invoke setup         - Complete setup (import + fetch)
     invoke demo-setup    - Complete demo setup (load demo data + fetch)
-    invoke purge-data    - Purge all portfolio data (removes database)
+    invoke purge-data    - Purge all portfolio data (stops server, removes database, restarts server)
     invoke clean         - Clean generated files (includes database)
     invoke test          - Run tests
 """
@@ -50,19 +50,23 @@ def status(c):
 
 @task
 def import_data(c, file=None):
-    """Import transaction data from Excel."""
+    """Import transaction data from Excel and fetch indices."""
     print("📥 Importing transaction data...")
     if file:
         c.run(f"uv run python -c \"from src.degiro_portfolio.import_data import import_transactions; import_transactions('{file}')\"", pty=True)
     else:
         c.run("uv run python src/degiro_portfolio/import_data.py", pty=True)
+    print()
+    fetch_indices(c)
 
 
 @task
 def load_demo(c):
-    """Load demo data (example_data.xlsx) for testing."""
+    """Load demo data (example_data.xlsx) for testing and fetch indices."""
     print("📥 Loading demo data...")
     c.run("uv run python -c \"from src.degiro_portfolio.import_data import import_transactions; import_transactions('example_data.xlsx')\"", pty=True)
+    print()
+    fetch_indices(c)
 
 
 @task
@@ -105,13 +109,21 @@ def demo_setup(c):
 
 @task
 def purge_data(c):
-    """Purge all portfolio data (removes database only)."""
+    """Purge all portfolio data (removes database only) and restart server."""
     print("⚠️  WARNING: This will delete all portfolio data (stocks, transactions, prices)")
     print("   Database file will be removed: degiro-portfolio.db")
 
     response = input("\n   Are you sure you want to continue? (yes/no): ")
 
     if response.lower() in ['yes', 'y']:
+        # Stop the server first
+        print("\n🛑 Stopping server...")
+        try:
+            stop(c)
+        except Exception as e:
+            print(f"   Note: Server may not have been running ({e})")
+
+        # Purge the database files
         db_files = [
             "degiro-portfolio.db",
             "stockchart.db",  # Legacy database name
@@ -128,8 +140,17 @@ def purge_data(c):
         if removed:
             print("\n✅ Data purged successfully")
             print("   Run 'invoke load-demo' or 'invoke import-data' to reload data")
+            print("   (Indices will be fetched automatically)")
         else:
             print("\n   No database files found")
+
+        # Start the server
+        print("\n🚀 Starting server...")
+        try:
+            start(c)
+        except Exception as e:
+            print(f"   Error starting server: {e}")
+            print("   You may need to run 'invoke start' manually")
     else:
         print("\n   Cancelled - no data was deleted")
 
@@ -259,6 +280,30 @@ def install(c):
     print("📦 Installing dependencies...")
     c.run("uv sync", pty=True)
     print("✅ Dependencies installed")
+
+
+@task
+def build_docs(c):
+    """Build Sphinx documentation."""
+    print("📚 Building documentation...")
+    c.run("cd docs && uv run sphinx-build -b html . _build/html", pty=True)
+    print("✅ Documentation built in docs/_build/html/")
+    print("   Open docs/_build/html/index.html to view")
+
+
+@task
+def clean_docs(c):
+    """Clean built documentation."""
+    print("🧹 Cleaning documentation build...")
+    c.run("rm -rf docs/_build", pty=True)
+    print("✅ Documentation build cleaned")
+
+
+@task
+def serve_docs(c):
+    """Serve documentation locally."""
+    print("📖 Serving documentation on http://localhost:8080")
+    c.run("cd docs/_build/html && python -m http.server 8080", pty=True)
 
 
 @task

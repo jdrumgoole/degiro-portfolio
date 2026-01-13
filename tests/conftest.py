@@ -66,6 +66,10 @@ def test_database():
     test_db_absolute = str(TEST_DB_PATH.absolute())
     os.environ["DATABASE_URL"] = f"sqlite:///{test_db_absolute}"
 
+    # Reinitialize database engine to use test database
+    from degiro_portfolio.database import reinitialize_engine
+    reinitialize_engine()
+
     print(f"\n📦 Creating test database: {test_db_absolute}")
 
     # Import the example data

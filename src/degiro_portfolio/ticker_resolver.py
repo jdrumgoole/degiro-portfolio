@@ -22,6 +22,19 @@ MANUAL_TICKER_MAPPING: Dict[str, Dict[str, str]] = {
     "NL0000235190": {"EUR": "AIR.PA"},  # AIRBUS GROUP - Paris
     "DE0007030009": {"EUR": "RHM.DE"},  # RHEINMETALL AG - Frankfurt
     "NL0000687663": {"USD": "AER", "EUR": "AER"},  # AERCAP HOLDINGS - NYSE
+    # US stocks from example data
+    "US02079K3059": {"USD": "GOOGL"},  # ALPHABET INC-CL A - NASDAQ
+    "US67066G1040": {"USD": "NVDA"},  # NVIDIA CORPORATION
+    "US5949181045": {"USD": "MSFT"},  # MICROSOFT CORPORATION
+    "US30303M1027": {"USD": "META"},  # META PLATFORMS INC
+    "US0079031078": {"USD": "AMD"},  # ADVANCED MICRO DEVICES
+    # Additional European stocks from example data
+    "DE0006231004": {"EUR": "IFX.DE"},  # INFINEON TECHNOLOGIES AG - Frankfurt
+    "NL0000226223": {"EUR": "STM"},  # STMICROELECTRONICS NV - NYSE (better data than STM.PA)
+    "FI0009000681": {"EUR": "NOK"},  # NOKIA OYJ - NYSE (better data than NOKIA.HE)
+    "SE0000108656": {"SEK": "ERIC-B.ST", "EUR": "ERIC-B.ST"},  # TELEFONAKTIEBOLAGET LM ERICSSON-B - Stockholm
+    "DE0007164600": {"EUR": "SAP.DE"},  # SAP SE - Frankfurt
+    "NL0010273215": {"EUR": "ASML.AS"},  # ASML HOLDING NV - Amsterdam
 }
 
 
