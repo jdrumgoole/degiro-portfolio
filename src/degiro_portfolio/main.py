@@ -40,12 +40,13 @@ if os.path.exists(static_dir):
 # Models for API responses
 class StockInfo:
     """Stock information with current holdings."""
-    def __init__(self, stock: Stock, shares: int, transactions_count: int, latest_price=None, price_change_pct=None, price_date=None):
+    def __init__(self, stock: Stock, shares: int, transactions_count: int, latest_price=None, price_change_pct=None, price_date=None, price_currency=None):
         self.id = stock.id
         self.symbol = stock.symbol
         self.name = stock.name
         self.isin = stock.isin
-        self.currency = stock.currency
+        self.currency = stock.currency  # DEGIRO transaction currency
+        self.price_currency = price_currency or stock.currency  # Actual price currency from exchange
         self.shares = shares
         self.transactions_count = transactions_count
         self.latest_price = latest_price
@@ -60,7 +61,8 @@ class StockInfo:
             "symbol": self.symbol,
             "name": self.name,
             "isin": self.isin,
-            "currency": self.currency,
+            "currency": self.price_currency,  # Return actual price currency
+            "degiro_currency": self.currency,  # Keep DEGIRO currency for reference
             "shares": self.shares,
             "transactions_count": self.transactions_count,
             "latest_price": self.latest_price,
@@ -100,10 +102,12 @@ async def get_holdings(db: Session = Depends(get_db)):
             latest_price = None
             price_change_pct = None
             price_date = None
+            price_currency = None
 
             if latest_price_record:
                 latest_price = latest_price_record.close
                 price_date = latest_price_record.date.strftime("%Y-%m-%d")
+                price_currency = latest_price_record.currency  # Get actual price currency
 
                 # Get previous price (day before latest)
                 previous_price_record = db.query(StockPrice).filter(
@@ -120,7 +124,8 @@ async def get_holdings(db: Session = Depends(get_db)):
                 trans_count,
                 latest_price,
                 price_change_pct,
-                price_date
+                price_date,
+                price_currency  # Pass actual price currency
             ).to_dict())
 
     return {"holdings": holdings}
