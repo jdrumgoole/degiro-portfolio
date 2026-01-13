@@ -933,7 +933,11 @@
                 modeBarButtonsToRemove: ['lasso2d', 'select2d']
             };
 
-            Plotly.newPlot('chart', priceTraces, priceLayout, config);
+            // Plotly.newPlot returns a promise
+            Plotly.newPlot('chart', priceTraces, priceLayout, config).then(() => {
+                // Add data attribute to indicate chart is ready (for tests)
+                document.getElementById('chart').setAttribute('data-chart-ready', 'true');
+            });
 
             // ========================================
             // CHART 2: Tranche Value Chart
@@ -1406,7 +1410,7 @@
                     // Re-render holdings to show updated prices
                     renderHoldings();
 
-                    // Update status
+                    // Update status and hide static market data status
                     const statusDiv = document.getElementById('live-prices-status');
                     const now = new Date();
                     const timeStr = now.toLocaleTimeString('en-US', {
@@ -1417,6 +1421,12 @@
                     statusDiv.textContent = `🔴 Live prices: ${timeStr} (${result.count} stocks)`;
                     statusDiv.style.color = '#48bb78';  // Green color for success
                     livePricesEnabled = true;
+
+                    // Hide the static market data status when live prices are active
+                    const marketDataStatus = document.getElementById('market-data-status');
+                    if (marketDataStatus) {
+                        marketDataStatus.style.display = 'none';
+                    }
                 } else if (!result.success) {
                     console.log('Live prices not available:', result.message);
                     livePricesEnabled = false;

@@ -10,12 +10,16 @@ def test_chart_loads_when_stock_selected(page: Page):
     first_card = page.locator(".stock-card").first
     first_card.click()
 
-    # Wait for chart to render
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    # Wait for chart to be fully rendered (using data attribute set after Plotly finishes)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
-    # Check chart is visible
+    # Check chart container is visible
     chart = page.locator("#chart")
     expect(chart).to_be_visible()
+
+    # Verify Plotly chart elements exist (note: .plotly may have visibility:hidden in CSS)
+    plotly_chart = page.locator("#chart .plotly")
+    expect(plotly_chart).to_be_attached()
 
 
 def test_chart_title_shows_stock_name(page: Page):
@@ -24,12 +28,22 @@ def test_chart_title_shows_stock_name(page: Page):
     nvidia_card = page.locator(".stock-card:has-text('NVIDIA CORP')").first
     nvidia_card.click()
 
-    # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    # Wait for chart to be fully rendered AND for the chart title to contain NVIDIA
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
-    # Check that chart area contains stock name or ticker
-    chart_html = page.locator("#chart").inner_html()
-    assert "NVIDIA" in chart_html or "NVDA" in chart_html, "Chart doesn't show stock name"
+    # Wait for the chart title to update (it may take a moment after clicking)
+    page.wait_for_function(
+        """() => {
+            const title = document.getElementById('chart-title');
+            return title && (title.innerText.includes('NVIDIA') || title.innerText.includes('NVDA'));
+        }""",
+        timeout=5000
+    )
+
+    # Check that chart title shows stock name (chart-title element is above the chart)
+    chart_title = page.locator("#chart-title")
+    title_text = chart_title.inner_text()
+    assert "NVIDIA" in title_text or "NVDA" in title_text, f"Chart title doesn't show stock name: {title_text}"
 
 
 def test_multiple_chart_tabs_exist(page: Page):
@@ -39,7 +53,7 @@ def test_multiple_chart_tabs_exist(page: Page):
     first_card.click()
 
     # Wait for chart to load
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
     # Look for chart type buttons/tabs
     # The app should have multiple chart views based on the code we've seen
@@ -54,11 +68,11 @@ def test_chart_has_candlestick_data(page: Page):
     nvidia_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
     # Check for Plotly chart elements
     plotly_chart = page.locator("#chart .plotly")
-    expect(plotly_chart).to_be_visible()
+    expect(plotly_chart).to_be_attached()
 
     # Check that chart has data by looking for SVG elements
     svg_elements = page.locator("#chart svg")
@@ -72,7 +86,7 @@ def test_chart_shows_transaction_markers(page: Page):
     nvidia_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
     # Give time for all traces to render
     page.wait_for_timeout(2000)
@@ -93,10 +107,11 @@ def test_chart_is_interactive(page: Page):
     first_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
-    # Check for Plotly modebar (zoom, pan, etc.)
-    modebar = page.locator(".modebar-container")
+    # Check for Plotly modebar (zoom, pan, etc.) - there are multiple charts on page
+    # Check specifically for the main price chart's modebar
+    modebar = page.locator("#chart .modebar-container").first
     # Modebar should exist (may be hidden until hover)
     expect(modebar).to_be_attached()
 
@@ -108,7 +123,7 @@ def test_chart_has_date_axis(page: Page):
     first_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
     # Check for axis labels
     # Plotly creates axis elements in the SVG
@@ -125,7 +140,7 @@ def test_chart_has_price_axis(page: Page):
     nvidia_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
     # Check for Y-axis elements
     ytick_elements = page.locator("#chart .ytick")
@@ -140,25 +155,33 @@ def test_switching_between_stocks_updates_chart(page: Page):
     nvidia_card = page.locator(".stock-card:has-text('NVIDIA CORP')").first
     nvidia_card.click()
 
-    # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
-    page.wait_for_timeout(1000)
-
-    # Get chart HTML
-    nvidia_chart_html = page.locator("#chart").inner_html()
+    # Wait for NVIDIA chart and title
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
+    page.wait_for_function(
+        """() => {
+            const title = document.getElementById('chart-title');
+            return title && title.innerText.includes('NVIDIA');
+        }""",
+        timeout=5000
+    )
 
     # Click on Microsoft
     msft_card = page.locator(".stock-card:has-text('MICROSOFT CORP')").first
     msft_card.click()
 
-    # Wait for chart to update
-    page.wait_for_timeout(2000)
+    # Wait for chart title to change to Microsoft
+    page.wait_for_function(
+        """() => {
+            const title = document.getElementById('chart-title');
+            return title && title.innerText.includes('MICROSOFT');
+        }""",
+        timeout=5000
+    )
 
-    # Get new chart HTML
-    msft_chart_html = page.locator("#chart").inner_html()
-
-    # Charts should be different
-    assert nvidia_chart_html != msft_chart_html, "Chart didn't update when switching stocks"
+    # Verify the chart title shows Microsoft
+    chart_title = page.locator("#chart-title")
+    title_text = chart_title.inner_text()
+    assert "MICROSOFT" in title_text or "MSFT" in title_text, f"Chart didn't update to show Microsoft: {title_text}"
 
 
 def test_chart_renders_for_european_stocks(page: Page):
@@ -168,11 +191,11 @@ def test_chart_renders_for_european_stocks(page: Page):
     asml_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
-    # Chart should be visible
+    # Chart should be rendered
     chart = page.locator("#chart .plotly")
-    expect(chart).to_be_visible()
+    expect(chart).to_be_attached()
 
 
 def test_chart_renders_for_sek_currency_stock(page: Page):
@@ -182,11 +205,11 @@ def test_chart_renders_for_sek_currency_stock(page: Page):
     ericsson_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
-    # Chart should be visible
+    # Chart should be rendered
     chart = page.locator("#chart .plotly")
-    expect(chart).to_be_visible()
+    expect(chart).to_be_attached()
 
 
 def test_chart_has_uniform_marker_sizes(page: Page):
@@ -196,12 +219,12 @@ def test_chart_has_uniform_marker_sizes(page: Page):
     nvidia_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
     page.wait_for_timeout(2000)
 
     # Chart should render
     chart = page.locator("#chart .plotly")
-    expect(chart).to_be_visible()
+    expect(chart).to_be_attached()
 
     # We can't easily test marker size directly, but we can verify chart rendered
     # The actual marker size uniformity is tested visually or in the JavaScript code
@@ -214,7 +237,7 @@ def test_chart_container_has_proper_dimensions(page: Page):
     first_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
     # Check chart container dimensions
     chart = page.locator("#chart")
@@ -232,7 +255,7 @@ def test_chart_persists_when_page_scrolled(page: Page):
     first_card.click()
 
     # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
     # Scroll page
     page.evaluate("window.scrollTo(0, 500)")

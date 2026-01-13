@@ -137,8 +137,8 @@ def test_chart_area_remains_visible_after_interactions(page: Page):
     first_card = page.locator(".stock-card").first
     first_card.click()
 
-    # Wait for chart
-    page.wait_for_selector("#chart .plotly", timeout=15000)
+    # Wait for chart to be fully rendered
+    page.wait_for_selector("#chart[data-chart-ready='true']", timeout=15000)
 
     # Scroll page
     page.evaluate("window.scrollTo(0, 300)")

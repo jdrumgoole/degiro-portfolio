@@ -76,15 +76,70 @@ def test_database():
     from degiro_portfolio.import_data import import_transactions
     import_transactions(EXAMPLE_DATA)
 
-    # Fetch prices for the stocks
-    from degiro_portfolio.fetch_prices import fetch_all_current_holdings
-    fetch_all_current_holdings()
+    # Add mock price data for tests (avoid API calls during testing)
+    from degiro_portfolio.database import Stock, StockPrice, Index, IndexPrice, SessionLocal
+    from datetime import datetime, timedelta
 
-    # Fetch market indices
-    from degiro_portfolio.fetch_indices import fetch_index_prices
-    fetch_index_prices()
+    db = SessionLocal()
+    try:
+        # Get all stocks
+        stocks = db.query(Stock).all()
 
-    print(f"✅ Test database created successfully")
+        # Generate mock price data for the last 180 days
+        base_date = datetime.now() - timedelta(days=180)
+
+        for stock in stocks:
+            # Create mock prices with some variation
+            base_price = 100.0  # Starting price
+            for day in range(180):
+                current_date = base_date + timedelta(days=day)
+                # Add some variation to make realistic-looking data
+                variation = (day % 10) - 5  # -5 to +5
+                price = base_price + variation
+
+                price_record = StockPrice(
+                    stock_id=stock.id,
+                    date=current_date,
+                    open=price - 0.5,
+                    high=price + 1.0,
+                    low=price - 1.0,
+                    close=price,
+                    volume=1000000,
+                    currency=stock.currency
+                )
+                db.add(price_record)
+
+        # Add mock index data
+        indices = [
+            Index(symbol="^GSPC", name="S&P 500"),
+            Index(symbol="^STOXX50E", name="Euro Stoxx 50")
+        ]
+        for index in indices:
+            existing = db.query(Index).filter_by(symbol=index.symbol).first()
+            if not existing:
+                db.add(index)
+
+        db.commit()
+
+        # Add mock index prices
+        for index in db.query(Index).all():
+            base_index_price = 4000.0
+            for day in range(180):
+                current_date = base_date + timedelta(days=day)
+                variation = (day % 10) - 5
+                price = base_index_price + variation * 10
+
+                index_price = IndexPrice(
+                    index_id=index.id,
+                    date=current_date,
+                    close=price
+                )
+                db.add(index_price)
+
+        db.commit()
+        print(f"✅ Test database created successfully with mock price data")
+    finally:
+        db.close()
 
     yield test_db_absolute
 
