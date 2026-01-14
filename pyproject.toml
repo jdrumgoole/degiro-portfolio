@@ -28,6 +28,7 @@ dev = [
     "sphinx>=7.0.0",
     "sphinx-rtd-theme>=2.0.0",
     "myst-parser>=2.0.0",
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [build-system]

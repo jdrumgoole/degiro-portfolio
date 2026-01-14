@@ -13,8 +13,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 project = 'DEGIRO Portfolio'
 copyright = '2026'
 author = 'DEGIRO Portfolio Contributors'
-release = '0.2.1'
-version = '0.2.1'
+
+# Read version from pyproject.toml
+try:
+    import tomllib  # Python 3.11+
+except ImportError:
+    import tomli as tomllib  # Python 3.10
+
+project_root = Path(__file__).parent.parent
+with open(project_root / "pyproject.toml", "rb") as f:
+    pyproject = tomllib.load(f)
+    version = pyproject["project"]["version"]
+    release = version
 
 # -- General configuration ---------------------------------------------------
 extensions = [
