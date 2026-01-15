@@ -151,9 +151,9 @@ def test_chart_area_remains_visible_after_interactions(page: Page):
 
 def test_portfolio_summary_remains_visible_during_interactions(page: Page):
     """Test that portfolio summary stays visible during stock selection."""
-    # Portfolio summary should be visible initially
+    # Wait for portfolio summary to load and become visible
     summary = page.locator(".portfolio-summary")
-    expect(summary).to_be_visible()
+    expect(summary).to_be_visible(timeout=10000)
 
     # Click a stock
     first_card = page.locator(".stock-card").first

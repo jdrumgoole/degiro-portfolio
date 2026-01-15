@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-15
+
+### Added
+- **Auto-Refreshing Stock Charts**: Stock price charts now automatically refresh every minute to show the latest data
+- **Portfolio Valuation Timeline Extension**: Portfolio Total Value Over Time chart now always extends to today's date, not just the last price update
+- **Latest Date Annotation**: Portfolio valuation chart displays the most recent date in the top-right corner for easy reference
+- **Automatic Market Index Loading**: Market indices (S&P 500, Euro Stoxx 50) are now automatically fetched when uploading transactions
+- **Comprehensive Test Suite**: Added 55+ unit tests across core modules (fetch_prices, fetch_indices, price_fetchers, ticker_resolver, main API endpoints)
+- **Test Coverage Reporting**: New invoke tasks for coverage reports (`test-cov`, `test-cov-html`)
+- **Test Organization**: Separated unit tests (`test-unit`) from integration tests (`test-integration`) for faster feedback
+
+### Changed
+- **Transaction Marker Positioning**: Buy/sell markers now align with candlestick high/low prices instead of transaction prices, fixing alignment issues caused by stock splits
+- **Chart Refresh Interval Management**: Each stock chart properly clears previous refresh intervals when switching stocks
+
+### Fixed
+- **Portfolio Chart End Date**: Fixed issue where portfolio valuation chart would stop at the last price update instead of extending to today
+- **Transaction Marker Alignment**: Fixed misalignment of transaction markers on stocks with splits (e.g., ASML) by positioning markers at actual candlestick prices
+- **Chart Auto-Refresh**: Properly manages refresh intervals to prevent memory leaks and duplicate refreshes
+
+### Testing
+- **Test Coverage**: Achieved 70% code coverage (116 passing tests)
+- **Unit Test Coverage**:
+  - main.py: API endpoints and server functionality
+  - fetch_indices.py: Market index data fetching
+  - fetch_prices.py: Stock price data fetching
+  - price_fetchers.py: Price provider implementations
+  - ticker_resolver.py: ISIN to ticker mapping
+- **Integration Test Coverage**: All browser-based UI tests passing
+
+### Documentation
+- Updated README.md with new features (auto-refresh, test coverage, new invoke tasks)
+- Enhanced testing section with coverage information and test organization
+- Added changelog entry for version 0.3.0
+
 ## [0.2.0] - 2026-01-12
 
 ### Added

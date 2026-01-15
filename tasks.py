@@ -2,19 +2,39 @@
 Invoke tasks for DEGIRO Portfolio application.
 
 Usage:
-    invoke start         - Start the application
-    invoke stop          - Stop the application
-    invoke restart       - Restart the application
-    invoke status        - Check application status
-    invoke import-data   - Import transactions from Excel, fetch prices, and fetch indices (default: Transactions.xlsx)
-    invoke load-demo     - Load demo data (example_data.xlsx), fetch prices, and fetch indices
-    invoke fetch-prices  - Fetch latest stock prices
-    invoke fetch-indices - Fetch market index data (S&P 500, Euro Stoxx 50)
-    invoke setup         - Complete setup (same as import-data)
-    invoke demo-setup    - Complete demo setup (same as load-demo)
-    invoke purge-data    - Purge all portfolio data (stops server, removes database, restarts server)
-    invoke clean         - Clean generated files (includes database)
-    invoke test          - Run tests
+    Production Server:
+        invoke start         - Start the application
+        invoke stop          - Stop the application
+        invoke restart       - Restart the application
+        invoke status        - Check application status
+
+    Data Management:
+        invoke import-data   - Import transactions from Excel, fetch prices, and fetch indices (default: Transactions.xlsx)
+        invoke load-demo     - Load demo data (example_data.xlsx), fetch prices, and fetch indices
+        invoke fetch-prices  - Fetch latest stock prices
+        invoke fetch-indices - Fetch market index data (S&P 500, Euro Stoxx 50)
+        invoke setup         - Complete setup (same as import-data)
+        invoke demo-setup    - Complete demo setup (same as load-demo)
+        invoke purge-data    - Purge all portfolio data (stops server, removes database, restarts server)
+
+    Test Server (Port 8001):
+        invoke test-full-setup       - Set up test database and start test server on port 8001
+        invoke test-server-start     - Start test server (--port 8001, --database degiro-portfolio-test.db)
+        invoke test-server-stop      - Stop test server (--port 8001)
+        invoke test-server-restart   - Restart test server
+        invoke test-server-status    - Check test server status
+        invoke setup-test-db         - Set up test database with example data
+
+    Testing:
+        invoke test              - Run all tests
+        invoke test-cov          - Run tests with coverage report
+        invoke test-cov-html     - Run tests with HTML coverage report
+        invoke test-unit         - Run only unit tests (fast)
+        invoke test-integration  - Run integration tests (browser tests)
+
+    Development:
+        invoke clean         - Clean generated files (includes database)
+        invoke dev           - Start development server with auto-reload
 """
 from invoke import task
 import sys
@@ -187,6 +207,36 @@ def test(c):
 
 
 @task
+def test_cov(c):
+    """Run tests with coverage report."""
+    print("🧪 Running tests with coverage...")
+    c.run("uv run pytest --cov=src/degiro_portfolio --cov-report=term-missing", pty=True)
+
+
+@task
+def test_cov_html(c):
+    """Run tests with HTML coverage report."""
+    print("🧪 Running tests with HTML coverage report...")
+    c.run("uv run pytest --cov=src/degiro_portfolio --cov-report=html", pty=True)
+    print("\n✅ Coverage report generated in htmlcov/index.html")
+    print("   Open htmlcov/index.html in your browser to view detailed coverage")
+
+
+@task
+def test_unit(c):
+    """Run only unit tests (fast)."""
+    print("🧪 Running unit tests...")
+    c.run("uv run pytest tests/test_*_unit.py -v", pty=True)
+
+
+@task
+def test_integration(c):
+    """Run integration tests (slower, uses browser)."""
+    print("🧪 Running integration tests...")
+    c.run("uv run pytest tests/test_portfolio_overview.py tests/test_stock_charts.py tests/test_interactive_features.py -v", pty=True)
+
+
+@task
 def lint(c):
     """Run linting checks."""
     print("🔍 Running linting checks...")
@@ -306,3 +356,79 @@ def serve_docs(c):
 def help_tasks(c):
     """Show available tasks."""
     c.run("invoke --list")
+
+
+# ============================================================================
+# Test Server Management
+# ============================================================================
+
+@task
+def test_server_start(c, port=8001, database="degiro-portfolio-test.db"):
+    """Start test server on specified port with test database."""
+    c.run(f"uv run python test_server.py start --port {port} --database {database}", pty=True)
+
+
+@task
+def test_server_stop(c, port=8001):
+    """Stop test server on specified port."""
+    c.run(f"uv run python test_server.py stop --port {port}", pty=True)
+
+
+@task
+def test_server_restart(c, port=8001, database="degiro-portfolio-test.db"):
+    """Restart test server on specified port."""
+    c.run(f"uv run python test_server.py restart --port {port} --database {database}", pty=True)
+
+
+@task
+def test_server_status(c, port=8001):
+    """Check test server status."""
+    c.run(f"uv run python test_server.py status --port {port}", pty=True)
+
+
+@task
+def setup_test_db(c, database="degiro-portfolio-test.db"):
+    """Set up test database with example data."""
+    db_path = f"$(pwd)/{database}"
+
+    # Remove old database
+    c.run(f"rm -f {database}")
+
+    print("📥 Importing example data...")
+    c.run(f"""DATABASE_URL="sqlite:///{db_path}" uv run python -c "
+from src.degiro_portfolio.import_data import import_transactions
+import_transactions('example_data.xlsx')
+"
+""", pty=True)
+
+    print("\n📊 Fetching market indices...")
+    c.run(f"""DATABASE_URL="sqlite:///{db_path}" uv run python -c "
+from src.degiro_portfolio.fetch_indices import fetch_index_prices
+fetch_index_prices()
+"
+""", pty=True)
+
+    print("\n📈 Fetching stock prices...")
+    c.run(f"""DATABASE_URL="sqlite:///{db_path}" uv run python -c "
+from src.degiro_portfolio.fetch_prices import fetch_all_current_holdings
+fetch_all_current_holdings()
+"
+""", pty=True)
+
+    print(f"\n✅ Test database created: {database}")
+
+
+@task
+def test_full_setup(c, port=8001):
+    """Complete test setup: create database, load data, and start server."""
+    print("🔧 Setting up test environment...\n")
+
+    # Set up test database
+    setup_test_db(c)
+
+    print("\n🚀 Starting test server...")
+    test_server_start(c, port=port)
+
+    print(f"\n✅ Test environment ready!")
+    print(f"   URL: http://localhost:{port}")
+    print(f"   Database: degiro-portfolio-test.db")

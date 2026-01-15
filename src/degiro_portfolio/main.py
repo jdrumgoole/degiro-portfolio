@@ -18,9 +18,62 @@ from .config import Config, get_column
 from .fetch_prices import fetch_stock_prices
 from .price_fetchers import get_price_fetcher
 
+# Market indices to track
+INDICES = {
+    "^GSPC": "S&P 500",
+    "^STOXX50E": "Euro Stoxx 50"
+}
+
 # NOTE: Hard-coded ticker mappings have been replaced by automatic resolution
 # via ticker_resolver.py. Tickers are now stored in the database and resolved
 # automatically during import. See ticker_resolver.py for manual fallback mappings.
+
+
+def ensure_indices_exist(db: Session) -> tuple[int, int]:
+    """
+    Ensure market indices exist in database and have historical data.
+    Returns tuple of (indices_created, prices_fetched).
+    """
+    indices_created = 0
+    prices_fetched = 0
+
+    try:
+        for symbol, name in INDICES.items():
+            # Check if index exists
+            index = db.query(Index).filter_by(symbol=symbol).first()
+            if not index:
+                index = Index(symbol=symbol, name=name)
+                db.add(index)
+                db.flush()
+                indices_created += 1
+
+            # Check if we have price data
+            existing_prices = db.query(IndexPrice).filter_by(index_id=index.id).count()
+            if existing_prices == 0:
+                # Fetch historical data (5 years)
+                ticker = yf.Ticker(symbol)
+                hist = ticker.history(period="5y")
+
+                if not hist.empty:
+                    # Store prices
+                    for date, row in hist.iterrows():
+                        price = IndexPrice(
+                            index_id=index.id,
+                            date=date.to_pydatetime(),
+                            close=float(row['Close'])
+                        )
+                        db.add(price)
+                        prices_fetched += 1
+
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        print(f"Error fetching indices: {e}")
+        raise
+
+    return indices_created, prices_fetched
+
 
 app = FastAPI(title="DEGIRO Portfolio", version="0.2.1")
 
@@ -469,6 +522,15 @@ async def get_portfolio_valuation_history(db: Session = Depends(get_db)):
     if not price_dates:
         return {"dates": [], "invested": [], "values": []}
 
+    # Always include today's date to ensure the chart extends to the present
+    from datetime import datetime
+    today = datetime.now().date()
+    existing_dates = {pd[0].date() for pd in price_dates}
+
+    # Add today if it's not already in the list and it's after the last price date
+    if today not in existing_dates and today > price_dates[-1][0].date():
+        price_dates.append((datetime.combine(today, datetime.min.time()),))
+
     # Group transactions by stock for efficient lookup
     trans_by_stock = {}
     for t in all_transactions:
@@ -720,6 +782,43 @@ async def upload_transactions(file: UploadFile = File(...), db: Session = Depend
                             live_prices_updated += 1
                             db.commit()
 
+            # Ensure indices exist and fetch data if needed
+            indices_created, index_prices_fetched = ensure_indices_exist(db)
+
+            # Update market data for all indices
+            indices_updated = 0
+            indices = db.query(Index).all()
+            for index in indices:
+                try:
+                    ticker = yf.Ticker(index.symbol)
+                    hist = ticker.history(period="7d")
+
+                    if not hist.empty:
+                        new_prices = 0
+                        for date, row in hist.iterrows():
+                            price_date = date.to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0)
+
+                            existing = db.query(IndexPrice).filter(
+                                IndexPrice.index_id == index.id,
+                                IndexPrice.date == price_date
+                            ).first()
+
+                            if not existing:
+                                price = IndexPrice(
+                                    index_id=index.id,
+                                    date=price_date,
+                                    close=float(row['Close'])
+                                )
+                                db.add(price)
+                                new_prices += 1
+
+                        if new_prices > 0:
+                            indices_updated += 1
+                            db.commit()
+
+                except Exception as e:
+                    print(f"Error updating index {index.name}: {e}")
+
             message = f"Successfully imported {new_transactions} new transactions"
             if updated_stocks > 0:
                 message += f" for {updated_stocks} new stocks"
@@ -727,6 +826,12 @@ async def upload_transactions(file: UploadFile = File(...), db: Session = Depend
                 message += f", fetched {total_prices} historical price records"
             if live_prices_updated > 0:
                 message += f", and updated {live_prices_updated} live prices"
+            if indices_created > 0:
+                message += f", created {indices_created} market indices"
+            if index_prices_fetched > 0:
+                message += f", fetched {index_prices_fetched} index price records"
+            if indices_updated > 0:
+                message += f", and updated {indices_updated} market indices"
 
             return JSONResponse(
                 content={

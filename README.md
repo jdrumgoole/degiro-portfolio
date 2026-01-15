@@ -8,6 +8,7 @@ A web application for tracking and visualizing your DEGIRO portfolio with intera
 - Import DEGIRO transaction exports from Excel spreadsheets
 - Upload new transaction files directly via web interface
 - Automatic fetching of historical stock prices using Yahoo Finance
+- Automatic market index data loading on upload (S&P 500, Euro Stoxx 50)
 - One-click market data updates for all holdings
 - Multi-currency support (EUR, USD, SEK) with automatic conversion
 - SQLite database for efficient data storage and retrieval
@@ -26,9 +27,12 @@ A web application for tracking and visualizing your DEGIRO portfolio with intera
 
 ### Interactive Charts
 - Candlestick price charts with buy/sell transaction markers
+- Auto-refreshing stock charts (updates every minute)
 - Investment tranche tracking showing individual purchase performance
 - Position value percentage charts (where 100% = break even)
 - Market index comparison (S&P 500, Euro Stoxx 50)
+- Portfolio valuation over time with latest date annotation
+- Automatic alignment of transaction markers with price bars
 - Zoom, pan, and hover for detailed information
 - Currency-aware visualization (transactions match price data)
 
@@ -82,40 +86,67 @@ The `degiro-portfolio` CLI provides easy server management:
 Additional tasks are available via `invoke`:
 
 ```bash
+# Server Management
 uv run invoke start          # Start the server
 uv run invoke stop           # Stop the server
 uv run invoke restart        # Restart the server
 uv run invoke status         # Check server status
+uv run invoke dev            # Start development server with auto-reload
+uv run invoke logs           # Show server logs
+
+# Data Management
 uv run invoke setup          # Import data and fetch prices
 uv run invoke import-data    # Import transactions from Excel
 uv run invoke fetch-prices   # Fetch latest stock prices
+uv run invoke fetch-indices  # Fetch market index data
 uv run invoke db-info        # Show database information
-uv run invoke logs           # Show server logs
-uv run invoke dev            # Start development server with auto-reload
+
+# Testing
+uv run invoke test           # Run all tests
+uv run invoke test-cov       # Run tests with coverage report
+uv run invoke test-cov-html  # Generate HTML coverage report
+uv run invoke test-unit      # Run only unit tests (fast)
+uv run invoke test-integration  # Run browser integration tests
+
+# Utilities
 uv run invoke clean          # Clean generated files
 uv run invoke --list         # Show all available tasks
 ```
 
 ## Testing
 
-The project includes a comprehensive Playwright-based test suite covering UI, API endpoints, and interactive features.
+The project includes a comprehensive test suite covering UI, API endpoints, and interactive features with **70% code coverage**.
 
 ```bash
 # Run all tests
 uv run pytest tests/ -v
 
+# Run tests with coverage report
+uv run invoke test-cov
+
+# Generate HTML coverage report
+uv run invoke test-cov-html
+
+# Run only unit tests (fast)
+uv run invoke test-unit
+
+# Run only integration tests (browser)
+uv run invoke test-integration
+
 # Run specific test file
 uv run pytest tests/test_portfolio_overview.py -v
-
-# Run with output visible
-uv run pytest tests/ -v -s
 ```
 
-**Test Coverage:**
+**Test Coverage (70%):**
 - Portfolio overview page (17 tests)
 - Stock charts and visualizations (15 tests)
 - API endpoints (14 tests)
 - Interactive features (19 tests)
+- Unit tests for core modules (55+ tests)
+  - FastAPI endpoints
+  - Index fetching
+  - Price fetching
+  - Ticker resolution
 
 See [tests/README.md](tests/README.md) for detailed testing documentation.
 

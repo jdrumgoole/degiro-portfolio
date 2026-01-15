@@ -100,6 +100,69 @@
             border-left: 4px solid #fc8181;
         }
 
+        .upload-progress-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 400px;
+            padding: 20px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: none;
+        }
+
+        .upload-progress-message {
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .progress-bar-background {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.3),
+                transparent
+            );
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
         .holdings-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -472,6 +535,15 @@
 
         <div id="upload-status" class="upload-status"></div>
 
+        <div id="upload-progress" class="upload-progress-container">
+            <div class="upload-progress-message" id="upload-progress-message">
+                📤 Uploading transactions...
+            </div>
+            <div class="progress-bar-background">
+                <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%"></div>
+            </div>
+        </div>
+
         <div id="loading" class="loading">Loading portfolio data...</div>
         <div id="error" class="error" style="display: none;"></div>
 
@@ -510,6 +582,7 @@
     <script>
         let holdings = [];
         let selectedStockId = null;
+        let chartRefreshInterval = null;
 
         // Currency utility functions
         function getCurrencySymbol(currency) {
@@ -662,6 +735,10 @@
                     hovertemplate: '<b>Net Invested</b><br>€%{y:,.2f}<br>%{x}<extra></extra>'
                 };
 
+                // Get the most recent date and value
+                const lastDate = data.dates[data.dates.length - 1];
+                const lastValue = data.values[data.values.length - 1];
+
                 const layout = {
                     xaxis: {
                         title: 'Date',
@@ -682,6 +759,26 @@
                         orientation: 'h',
                         bgcolor: 'rgba(255, 255, 255, 0.9)'
                     },
+                    annotations: [{
+                        x: 1,
+                        y: 1.08,
+                        xref: 'paper',
+                        yref: 'paper',
+                        text: `Latest: ${lastDate}`,
+                        showarrow: false,
+                        xanchor: 'right',
+                        yanchor: 'top',
+                        bgcolor: 'rgba(102, 126, 234, 0.1)',
+                        bordercolor: '#667eea',
+                        borderwidth: 1,
+                        borderpad: 4,
+                        font: {
+                            size: 11,
+                            color: '#667eea',
+                            weight: 'bold',
+                            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                        }
+                    }],
                     plot_bgcolor: '#f7fafc',
                     paper_bgcolor: 'white',
                     margin: { t: 10, b: 40 },
@@ -845,6 +942,12 @@
         }
 
         async function loadStockChart(stockId) {
+            // Clear any existing refresh interval
+            if (chartRefreshInterval) {
+                clearInterval(chartRefreshInterval);
+                chartRefreshInterval = null;
+            }
+
             selectedStockId = stockId;
             renderHoldings(); // Update active state
 
@@ -869,6 +972,14 @@
 
                 renderChart(data);
                 renderStats(data);
+
+                // Set up auto-refresh every minute
+                chartRefreshInterval = setInterval(() => {
+                    if (selectedStockId === stockId) {
+                        loadStockChart(stockId);
+                    }
+                }, 60000); // 60000ms = 1 minute
+
             } catch (error) {
                 showError('Failed to load chart data: ' + error.message);
             }
@@ -982,12 +1093,19 @@
             };
 
             // Buy transactions - only show those in the same currency as price data
+            // Position markers at the low price of the candlestick for that date to ensure alignment
             const buyTransactions = data.transactions.filter(t =>
                 t.transaction_type === 'buy' && t.currency === currency
             );
+
             const buyTrace = {
                 x: buyTransactions.map(t => t.date),
-                y: buyTransactions.map(t => t.price),
+                y: buyTransactions.map(t => {
+                    // Find the price data for this transaction date
+                    const priceData = data.prices.find(p => p.date === t.date);
+                    // Position marker at the low of the candlestick, or use transaction price as fallback
+                    return priceData ? priceData.low : t.price;
+                }),
                 mode: 'markers',
                 name: 'Buy',
                 yaxis: 'y',
@@ -1003,12 +1121,19 @@
             };
 
             // Sell transactions - only show those in the same currency as price data
+            // Position markers at the high price of the candlestick for that date to ensure alignment
             const sellTransactions = data.transactions.filter(t =>
                 t.transaction_type === 'sell' && t.currency === currency
             );
+
             const sellTrace = {
                 x: sellTransactions.map(t => t.date),
-                y: sellTransactions.map(t => t.price),
+                y: sellTransactions.map(t => {
+                    // Find the price data for this transaction date
+                    const priceData = data.prices.find(p => p.date === t.date);
+                    // Position marker at the high of the candlestick, or use transaction price as fallback
+                    return priceData ? priceData.high : t.price;
+                }),
                 mode: 'markers',
                 name: 'Sell',
                 yaxis: 'y',
@@ -1446,6 +1571,21 @@
             }, 5000);
         }
 
+        function showUploadProgress(message, progress) {
+            const progressContainer = document.getElementById('upload-progress');
+            const progressMessage = document.getElementById('upload-progress-message');
+            const progressBar = document.getElementById('progress-bar-fill');
+
+            progressMessage.textContent = message;
+            progressBar.style.width = progress + '%';
+            progressContainer.style.display = 'block';
+        }
+
+        function hideUploadProgress() {
+            const progressContainer = document.getElementById('upload-progress');
+            progressContainer.style.display = 'none';
+        }
+
         // Handle file upload
         document.getElementById('file-input').addEventListener('change', async function(e) {
             const file = e.target.files[0];
@@ -1454,8 +1594,30 @@
             const formData = new FormData();
             formData.append('file', file);
 
+            let progressInterval;
+            let currentProgress = 0;
+
             try {
-                showUploadStatus('📤 Uploading transactions and fetching prices... (this may take 30-60 seconds)', true);
+                // Show initial progress
+                showUploadProgress('📤 Uploading file...', 10);
+
+                // Simulate progress animation
+                progressInterval = setInterval(() => {
+                    if (currentProgress < 90) {
+                        currentProgress += Math.random() * 15;
+                        if (currentProgress > 90) currentProgress = 90;
+
+                        let message = '📤 Uploading file...';
+                        if (currentProgress > 30) {
+                            message = '📊 Processing transactions...';
+                        }
+                        if (currentProgress > 60) {
+                            message = '💰 Fetching market prices...';
+                        }
+
+                        showUploadProgress(message, currentProgress);
+                    }
+                }, 500);
 
                 const response = await fetch('/api/upload-transactions', {
                     method: 'POST',
@@ -1464,16 +1626,30 @@
 
                 const result = await response.json();
 
+                // Clear the progress interval
+                clearInterval(progressInterval);
+
                 if (result.success) {
-                    showUploadStatus('✅ ' + result.message + ' - Refreshing page in 3 seconds...', true);
-                    // Reload the page after successful upload
+                    // Show completion
+                    showUploadProgress('✅ Upload complete!', 100);
+
+                    // Hide progress bar and show success message
                     setTimeout(() => {
-                        window.location.reload();
-                    }, 3000);
+                        hideUploadProgress();
+                        showUploadStatus('✅ ' + result.message + ' - Refreshing page in 3 seconds...', true);
+
+                        // Reload the page after successful upload
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                    }, 1000);
                 } else {
+                    hideUploadProgress();
                     showUploadStatus('❌ ' + result.message, false);
                 }
             } catch (error) {
+                clearInterval(progressInterval);
+                hideUploadProgress();
                 showUploadStatus('Error uploading file: ' + error.message, false);
             }
 

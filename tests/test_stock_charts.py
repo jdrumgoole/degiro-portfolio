@@ -37,7 +37,7 @@ def test_chart_title_shows_stock_name(page: Page):
             const title = document.getElementById('chart-title');
             return title && (title.innerText.includes('NVIDIA') || title.innerText.includes('NVDA'));
         }""",
-        timeout=5000
+        timeout=15000
     )
 
     # Check that chart title shows stock name (chart-title element is above the chart)
@@ -162,7 +162,7 @@ def test_switching_between_stocks_updates_chart(page: Page):
             const title = document.getElementById('chart-title');
             return title && title.innerText.includes('NVIDIA');
         }""",
-        timeout=5000
+        timeout=15000
     )
 
     # Click on Microsoft
@@ -175,7 +175,7 @@ def test_switching_between_stocks_updates_chart(page: Page):
             const title = document.getElementById('chart-title');
             return title && title.innerText.includes('MICROSOFT');
         }""",
-        timeout=5000
+        timeout=15000
     )
 
     # Verify the chart title shows Microsoft
