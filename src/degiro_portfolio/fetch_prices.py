@@ -1,5 +1,6 @@
 """Fetch historical stock price data for current holdings."""
 import yfinance as yf
+import pandas as pd
 from datetime import datetime, timedelta
 try:
     from .database import SessionLocal, Stock, StockPrice, Transaction
@@ -14,6 +15,12 @@ from sqlalchemy import func
 # NOTE: Hard-coded ticker mappings have been replaced by automatic resolution
 # via ticker_resolver.py. Tickers are now stored in the database and resolved
 # automatically during import. See ticker_resolver.py for manual fallback mappings.
+
+# Stocks that should always use Yahoo Finance instead of other providers
+# (due to incorrect data from other providers)
+YAHOO_FINANCE_OVERRIDE = [
+    'AIR.PA',  # Airbus - Twelve Data returns incorrect price (~€101 instead of ~€214)
+]
 
 def get_ticker_for_stock(stock):
     """
@@ -72,28 +79,73 @@ def fetch_stock_prices(stock, session, start_date=None, end_date=None):
     if not isinstance(end_date, datetime):
         end_date = datetime.combine(end_date, datetime.max.time())
 
-    provider = Config.PRICE_DATA_PROVIDER
-    print(f"Fetching prices for {stock.name} ({ticker_symbol}) in {stock.currency} [Provider: {provider}]")
+    # Check if this stock is in the Yahoo Finance override list
+    if ticker_symbol in YAHOO_FINANCE_OVERRIDE:
+        provider = 'yahoo'
+        print(f"Fetching prices for {stock.name} ({ticker_symbol}) in {stock.currency} [Provider: {provider} - FORCED OVERRIDE]")
+        print(f"  Reason: Other providers return incorrect data for this stock")
+    else:
+        provider = Config.PRICE_DATA_PROVIDER
+        print(f"Fetching prices for {stock.name} ({ticker_symbol}) in {stock.currency} [Provider: {provider}]")
+
     print(f"  Period: {start_date.date()} to {end_date.date()}")
 
+    # Track which provider actually provided the data
+    actual_provider = provider
+
     try:
-        # Get the appropriate price fetcher
-        fetcher = get_price_fetcher()
+        # Get the appropriate price fetcher (use overridden provider if set)
+        fetcher = get_price_fetcher(provider)
         hist = fetcher.fetch_prices(ticker_symbol, start_date, end_date)
 
-        # If primary provider returns no data, fall back to Yahoo Finance
+        # Check if we should fall back to Yahoo Finance
+        should_fallback = False
+        if hist.empty:
+            should_fallback = True
+        elif provider != 'yahoo' and not hist.empty:
+            # Check if we're missing today's data
+            today = datetime.now().date()
+            latest_date = hist.index[-1].date() if hasattr(hist.index[-1], 'date') else hist.index[-1].to_pydatetime().date()
+            if latest_date < today:
+                should_fallback = True
+
+        # If primary provider returns no data or missing today's data, fall back to Yahoo Finance
         # CRITICAL: Use original ticker (ticker_symbol), not FMP-normalized ticker
-        if hist.empty and provider != 'yahoo':
-            print(f"  ⚠️  No data from {provider}, trying Yahoo Finance as fallback...")
+        if should_fallback and provider != 'yahoo':
+            if hist.empty:
+                print(f"  ⚠️  No data from {provider}, trying Yahoo Finance as fallback...")
+            else:
+                print(f"  ⚠️  {provider} missing today's data (latest: {latest_date}), trying Yahoo Finance as fallback...")
+
             try:
                 from .price_fetchers import YahooFinanceFetcher
             except ImportError:
                 from degiro_portfolio.price_fetchers import YahooFinanceFetcher
             yahoo_fetcher = YahooFinanceFetcher()
             # Use ticker_symbol directly (e.g., SAAB-B.ST, not SAABY)
-            hist = yahoo_fetcher.fetch_prices(ticker_symbol, start_date, end_date)
-            if not hist.empty:
+            yahoo_hist = yahoo_fetcher.fetch_prices(ticker_symbol, start_date, end_date)
+            if not yahoo_hist.empty:
+                # Normalize timezones before merging
+                if not hist.empty:
+                    # Convert both to timezone-naive for comparison
+                    if hasattr(hist.index, 'tz') and hist.index.tz is not None:
+                        hist.index = hist.index.tz_localize(None)
+                    if hasattr(yahoo_hist.index, 'tz') and yahoo_hist.index.tz is not None:
+                        yahoo_hist.index = yahoo_hist.index.tz_localize(None)
+
+                    # Combine: Yahoo data for newer dates, Twelve Data for existing
+                    latest_twelve_date = hist.index[-1]
+                    yahoo_new = yahoo_hist[yahoo_hist.index > latest_twelve_date]
+                    if not yahoo_new.empty:
+                        hist = pd.concat([hist, yahoo_new])
+                else:
+                    hist = yahoo_hist
+                    # Ensure timezone-naive
+                    if hasattr(hist.index, 'tz') and hist.index.tz is not None:
+                        hist.index = hist.index.tz_localize(None)
+
                 print(f"  ✓ Using Yahoo Finance data")
+                actual_provider = 'yahoo'  # Track that we fell back to Yahoo
 
         if hist.empty:
             print(f"  ❌ No price data available from any provider")
@@ -141,6 +193,12 @@ def fetch_stock_prices(stock, session, start_date=None, end_date=None):
             count += 1
 
         session.commit()
+
+        # Update the stock's data provider field (even if no new records added)
+        if stock.data_provider != actual_provider:
+            stock.data_provider = actual_provider
+            session.commit()
+
         print(f"  ✅ Added {count} price records\n")
         return count
 

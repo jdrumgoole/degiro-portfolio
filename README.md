@@ -10,7 +10,7 @@ A web application for tracking and visualizing your DEGIRO portfolio with intera
 - Automatic fetching of historical stock prices using Yahoo Finance
 - Automatic market index data loading on upload (S&P 500, Euro Stoxx 50)
 - One-click market data updates for all holdings
-- Multi-currency support (EUR, USD, SEK) with automatic conversion
+- Multi-currency support (EUR, USD, SEK, GBP) with **live exchange rate conversion** (v0.3.0)
 - SQLite database for efficient data storage and retrieval
 
 ### Portfolio Overview
@@ -18,9 +18,11 @@ A web application for tracking and visualizing your DEGIRO portfolio with intera
 - Stock cards showing:
   - Current holdings and share count
   - Latest closing price with daily percentage change (▲/▼)
+  - **Position value in EUR with live currency conversion** (NEW in v0.3.0)
   - Yahoo Finance ticker symbol (clickable → Google Finance)
   - Exchange information
   - Transaction count
+- **Live exchange rates API** for accurate EUR conversion (NEW in v0.3.0)
 - Market data status showing latest price update date
 - Clickable company names linking to investor relations search
 - Compact, space-efficient design

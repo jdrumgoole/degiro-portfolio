@@ -266,6 +266,14 @@
             font-size: 0.75em;
         }
 
+        .stock-value-eur {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #4299e1;
+            margin-bottom: 3px;
+            margin-top: 2px;
+        }
+
         .stock-meta {
             color: #718096;
             font-size: 0.65em;
@@ -617,8 +625,38 @@
         }
 
         // Load portfolio summary
+        // Currency conversion rates (fetched from API)
+        let exchangeRates = {
+            'EUR': 1.0,
+            'USD': null,
+            'SEK': null,
+            'GBP': null
+        };
+
+        async function fetchExchangeRates() {
+            try {
+                // Add timeout to prevent hanging during tests
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);  // 5 second timeout
+
+                const response = await fetch('/api/exchange-rates', { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                const data = await response.json();
+                if (data.success) {
+                    exchangeRates = {...exchangeRates, ...data.rates};
+                }
+            } catch (error) {
+                console.error('Failed to fetch exchange rates:', error);
+                // Use default rates if fetch fails
+            }
+        }
+
         async function loadPortfolioSummary() {
             try {
+                // Fetch exchange rates first
+                await fetchExchangeRates();
+
                 let totalNetInvested = 0;
                 let currentValue = 0;
                 let stockCount = 0;
@@ -645,14 +683,16 @@
                     const netInvested = buys - sells;
                     totalNetInvested += netInvested;
 
-                    // Get current price
+                    // Get current price and convert to EUR using current exchange rates
                     if (priceData.prices.length > 0) {
-                        const latestPrice = priceData.prices[priceData.prices.length - 1].close;
-                        // We need to convert to EUR - for now, we'll use the total_eur / quantity from last transaction as rough conversion
-                        // This is approximate - ideally we'd have live exchange rates
-                        const lastTrans = transData.transactions[transData.transactions.length - 1];
-                        const approxEurPerShare = Math.abs(lastTrans.total_eur) / Math.abs(lastTrans.quantity);
-                        currentValue += holding.shares * approxEurPerShare;
+                        const latestPriceData = priceData.prices[priceData.prices.length - 1];
+                        const latestPrice = latestPriceData.close;
+                        const priceCurrency = latestPriceData.currency;
+
+                        // Convert to EUR using current exchange rate
+                        const exchangeRate = exchangeRates[priceCurrency] || 1.0;
+                        const priceInEur = latestPrice * exchangeRate;
+                        currentValue += holding.shares * priceInEur;
                     }
 
                     stockCount++;
@@ -691,6 +731,8 @@
 
             } catch (error) {
                 console.error('Failed to load portfolio summary:', error);
+                // Still show the portfolio summary div even if there's an error
+                document.getElementById('portfolio-summary').style.display = 'block';
             }
         }
 
@@ -804,6 +846,9 @@
         // Load holdings on page load
         async function loadHoldings() {
             try {
+                // Fetch exchange rates first
+                await fetchExchangeRates();
+
                 const response = await fetch('/api/holdings');
                 const data = await response.json();
                 holdings = data.holdings;
@@ -892,6 +937,8 @@
             const grid = document.getElementById('holdings-grid');
             grid.innerHTML = holdings.map(stock => {
                 let priceInfo = '';
+                let positionValueEur = '';
+
                 if (stock.latest_price !== null && stock.latest_price !== undefined) {
                     // Get currency symbol or code
                     const currencyMap = {
@@ -920,6 +967,12 @@
                     }
 
                     priceInfo = `<div class="stock-price">${priceDisplay} ${changeHtml}</div>`;
+
+                    // Calculate position value in EUR using current exchange rate
+                    const exchangeRate = exchangeRates[stock.currency] || 1.0;
+                    const priceInEur = stock.latest_price * exchangeRate;
+                    const valueInEur = stock.shares * priceInEur;
+                    positionValueEur = `<div class="stock-value-eur">€${valueInEur.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>`;
                 }
 
                 // Generate URLs
@@ -935,6 +988,7 @@
                         ${stock.exchange ? `<div class="stock-exchange">${stock.exchange}</div>` : ''}
                         <div class="stock-shares">${stock.shares} shares</div>
                         ${priceInfo}
+                        ${positionValueEur}
                         <div class="stock-meta">${stock.transactions_count} transactions</div>
                     </div>
                 `;
@@ -956,8 +1010,16 @@
                 const data = await response.json();
 
                 document.getElementById('chart-section').style.display = 'block';
-                document.getElementById('chart-title').textContent =
-                    `${data.stock.name} (${data.stock.symbol})`;
+
+                // Build chart title with data source and date
+                const latestPriceDate = data.prices && data.prices.length > 0 ? data.prices[data.prices.length - 1].date : '';
+                const dataProvider = data.stock.data_provider || 'unknown';
+                const providerDisplay = dataProvider === 'twelvedata' ? 'Twelve Data' :
+                                       dataProvider === 'yahoo' ? 'Yahoo Finance' :
+                                       dataProvider === 'fmp' ? 'FMP' : dataProvider;
+
+                const titleElement = document.getElementById('chart-title');
+                titleElement.innerHTML = `${data.stock.name} (${data.stock.symbol}) <span style="font-size: 0.7em; color: #718096; font-weight: 400;">(last updated: ${latestPriceDate} from ${providerDisplay})</span>`;
 
                 // Check if we have price data
                 if (!data.prices || data.prices.length === 0) {
@@ -1731,6 +1793,15 @@
 
                     // Re-render holdings to show updated prices
                     renderHoldings();
+
+                    // Update portfolio summary and valuation chart with new prices
+                    await loadPortfolioSummary();
+                    await loadPortfolioValuationChart();
+
+                    // If a stock chart is currently displayed, reload it to show updated prices
+                    if (selectedStockId !== null) {
+                        await loadStockChart(selectedStockId);
+                    }
 
                     // Update status and hide static market data status
                     const statusDiv = document.getElementById('live-prices-status');

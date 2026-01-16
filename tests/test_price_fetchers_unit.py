@@ -108,7 +108,7 @@ def test_yahoo_fetcher_fetch_prices():
     """Test YahooFinanceFetcher.fetch_prices."""
     from degiro_portfolio.price_fetchers import YahooFinanceFetcher
 
-    with patch('degiro_portfolio.price_fetchers.yf.Ticker') as mock_ticker_class:
+    with patch('yfinance.Ticker') as mock_ticker_class:
         # Mock ticker and history
         mock_ticker = MagicMock()
         dates = pd.date_range(start='2024-01-01', periods=10, freq='D')
@@ -135,7 +135,7 @@ def test_yahoo_fetcher_fetch_prices():
         assert 'close' in result.columns
 
 
-@patch('degiro_portfolio.price_fetchers.requests.get')
+@patch('requests.Session.get')
 def test_fmp_fetcher_fetch_latest_quote(mock_get):
     """Test FMPFetcher.fetch_latest_quote."""
     from degiro_portfolio.price_fetchers import FMPFetcher
@@ -149,14 +149,14 @@ def test_fmp_fetcher_fetch_latest_quote(mock_get):
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = [{
-        'symbol': 'AAPL',
-        'price': 150.25,
-        'previousClose': 148.50,
+        'date': '2024-01-15',
+        'close': 150.25,
         'open': 149.00,
-        'dayHigh': 151.00,
-        'dayLow': 148.00,
+        'high': 151.00,
+        'low': 148.00,
         'volume': 50000000,
-        'timestamp': 1705334400
+        'change': 1.75,
+        'changePercent': 1.18
     }]
     mock_get.return_value = mock_response
 
@@ -185,7 +185,7 @@ def test_yahoo_finance_fetcher_handles_empty_data():
     """Test YahooFinanceFetcher handles empty data gracefully."""
     from degiro_portfolio.price_fetchers import YahooFinanceFetcher
 
-    with patch('degiro_portfolio.price_fetchers.yf.Ticker') as mock_ticker_class:
+    with patch('yfinance.Ticker') as mock_ticker_class:
         mock_ticker = MagicMock()
         mock_ticker.history.return_value = pd.DataFrame()  # Empty DataFrame
         mock_ticker_class.return_value = mock_ticker
@@ -218,9 +218,9 @@ def test_twelvedata_fetcher_handles_exceptions():
 
 
 def test_get_price_fetcher_with_invalid_provider():
-    """Test get_price_fetcher with invalid provider returns default."""
-    from degiro_portfolio.price_fetchers import get_price_fetcher, TwelveDataFetcher
+    """Test get_price_fetcher with invalid provider raises ValueError."""
+    from degiro_portfolio.price_fetchers import get_price_fetcher
 
-    # Invalid provider should default to TwelveData
-    fetcher = get_price_fetcher('invalid_provider')
-    assert isinstance(fetcher, TwelveDataFetcher)
+    # Invalid provider should raise ValueError
+    with pytest.raises(ValueError, match="Unknown price data provider"):
+        get_price_fetcher('invalid_provider')

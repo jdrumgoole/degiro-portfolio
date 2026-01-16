@@ -110,7 +110,11 @@ def test_verify_ticker():
     with patch('degiro_portfolio.ticker_resolver.yf.Ticker') as mock_ticker_class:
         # Mock successful verification
         mock_ticker = MagicMock()
-        mock_ticker.info = {'symbol': 'AAPL', 'shortName': 'Apple Inc.'}
+        mock_ticker.info = {
+            'symbol': 'AAPL',
+            'shortName': 'Apple Inc.',
+            'regularMarketPrice': 150.25
+        }
         mock_ticker_class.return_value = mock_ticker
 
         result = _verify_ticker("AAPL")

@@ -71,6 +71,9 @@ def test_stock_card_shows_ticker_symbols(page: Page, expected_stocks):
 
 def test_stock_card_shows_exchange(page: Page):
     """Test that stock cards display exchange information."""
+    # Wait for stock cards to load
+    page.wait_for_selector(".stock-card", timeout=10000)
+
     # Check for exchange labels
     cards_with_exchange = page.locator(".stock-card .stock-exchange")
     count = cards_with_exchange.count()

@@ -75,7 +75,7 @@ def ensure_indices_exist(db: Session) -> tuple[int, int]:
     return indices_created, prices_fetched
 
 
-app = FastAPI(title="DEGIRO Portfolio", version="0.2.1")
+app = FastAPI(title="DEGIRO Portfolio", version="0.3.0")
 
 
 @app.on_event("startup")
@@ -199,6 +199,41 @@ async def get_market_data_status(db: Session = Depends(get_db)):
         return {
             "latest_date": None,
             "has_data": False
+        }
+
+
+@app.get("/api/exchange-rates")
+async def get_exchange_rates():
+    """Get current exchange rates for currency conversion."""
+    try:
+        # Fetch current exchange rates from Yahoo Finance
+        usd_eur_ticker = yf.Ticker('USDEUR=X')
+        sek_eur_ticker = yf.Ticker('SEKEUR=X')
+        gbp_eur_ticker = yf.Ticker('GBPEUR=X')
+
+        usd_eur = usd_eur_ticker.history(period='1d')['Close'].iloc[-1]
+        sek_eur = sek_eur_ticker.history(period='1d')['Close'].iloc[-1]
+        gbp_eur = gbp_eur_ticker.history(period='1d')['Close'].iloc[-1]
+
+        return {
+            "success": True,
+            "rates": {
+                "EUR": 1.0,
+                "USD": float(usd_eur),
+                "SEK": float(sek_eur),
+                "GBP": float(gbp_eur)
+            }
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "rates": {
+                "EUR": 1.0,
+                "USD": 0.85,  # Fallback approximations
+                "SEK": 0.093,
+                "GBP": 1.18
+            }
         }
 
 
@@ -403,7 +438,8 @@ async def get_chart_data(stock_id: int, db: Session = Depends(get_db)):
             "id": stock.id,
             "name": stock.name,
             "symbol": stock.symbol,
-            "currency": stock.currency
+            "currency": stock.currency,
+            "data_provider": stock.data_provider or "unknown"
         },
         "prices": [
             {
@@ -854,9 +890,10 @@ async def upload_transactions(file: UploadFile = File(...), db: Session = Depend
 
 @app.post("/api/refresh-live-prices")
 async def refresh_live_prices(db: Session = Depends(get_db)):
-    """Fetch real-time price quotes for currently held stocks."""
+    """Fetch real-time price quotes for currently held stocks using Twelve Data or Yahoo Finance."""
     try:
-        # Use Yahoo Finance for live prices (free, reliable, supports all exchanges)
+        from .price_fetchers import get_price_fetcher
+        from .fetch_prices import YAHOO_FINANCE_OVERRIDE
         import yfinance as yf
 
         # Get currently held stocks
@@ -873,49 +910,79 @@ async def refresh_live_prices(db: Session = Depends(get_db)):
         quotes = []
         errors = []
 
+        # Try Twelve Data first if configured, otherwise use Yahoo Finance
+        use_twelvedata = Config.PRICE_DATA_PROVIDER == 'twelvedata'
+
         for stock in current_holdings:
             ticker_symbol = stock.yahoo_ticker
             if not ticker_symbol:
                 errors.append(f"No ticker for {stock.name}")
                 continue
 
-            try:
-                # Fetch current price from Yahoo Finance
-                ticker_obj = yf.Ticker(ticker_symbol)
-                hist = ticker_obj.history(period='1d')
+            quote_data = None
 
-                if hist.empty:
-                    errors.append(f"No quote for {stock.name}")
+            # Check if this stock is in the Yahoo Finance override list
+            force_yahoo = ticker_symbol in YAHOO_FINANCE_OVERRIDE
+
+            # Try Twelve Data real-time quote first if configured and not overridden
+            if use_twelvedata and not force_yahoo:
+                try:
+                    fetcher = get_price_fetcher('twelvedata')
+                    quote_data = fetcher.fetch_latest_quote(ticker_symbol)
+                except Exception as e:
+                    print(f"  ⚠️  Twelve Data quote failed for {stock.name}, trying Yahoo Finance: {e}")
+
+            # Fallback to Yahoo Finance if Twelve Data not configured or failed
+            if not quote_data:
+                try:
+                    ticker_obj = yf.Ticker(ticker_symbol)
+                    hist = ticker_obj.history(period='1d')
+
+                    if hist.empty:
+                        errors.append(f"No quote for {stock.name}")
+                        continue
+
+                    # Get latest data
+                    latest = hist.iloc[-1]
+                    prev_close = ticker_obj.info.get('previousClose', latest['Close'])
+
+                    # Calculate change
+                    change = latest['Close'] - prev_close
+                    change_percent = (change / prev_close * 100) if prev_close else 0
+
+                    # Get actual currency
+                    actual_currency = ticker_obj.info.get('currency', stock.currency)
+
+                    quote_data = {
+                        "price": float(latest['Close']),
+                        "change": float(change),
+                        "change_percent": float(change_percent),
+                        "open": float(latest['Open']),
+                        "high": float(latest['High']),
+                        "low": float(latest['Low']),
+                        "volume": int(latest['Volume']),
+                        "timestamp": hist.index[-1].strftime('%Y-%m-%d %H:%M:%S'),
+                    }
+                except Exception as e:
+                    errors.append(f"Error fetching {stock.name}: {str(e)}")
                     continue
 
-                # Get latest data
-                latest = hist.iloc[-1]
-                prev_close = ticker_obj.info.get('previousClose', latest['Close'])
-
-                # Calculate change
-                change = latest['Close'] - prev_close
-                change_percent = (change / prev_close * 100) if prev_close else 0
-
-                # Get actual currency
-                actual_currency = ticker_obj.info.get('currency', stock.currency)
-
+            if quote_data:
                 quotes.append({
                     "stock_id": stock.id,
                     "name": stock.name,
                     "symbol": stock.symbol,
                     "ticker": ticker_symbol,
-                    "price": float(latest['Close']),
-                    "change": float(change),
-                    "change_percent": float(change_percent),
-                    "open": float(latest['Open']),
-                    "high": float(latest['High']),
-                    "low": float(latest['Low']),
-                    "volume": int(latest['Volume']),
-                    "timestamp": hist.index[-1].strftime('%Y-%m-%d'),
-                    "currency": actual_currency
+                    "price": quote_data['price'],
+                    "change": quote_data.get('change', 0),
+                    "change_percent": quote_data.get('change_percent', 0),
+                    "open": quote_data.get('open', 0),
+                    "high": quote_data.get('high', 0),
+                    "low": quote_data.get('low', 0),
+                    "volume": quote_data.get('volume', 0),
+                    "timestamp": quote_data.get('timestamp', ''),
+                    "currency": stock.currency
                 })
-            except Exception as e:
-                errors.append(f"Error fetching {stock.name}: {str(e)}")
 
         return JSONResponse(
             content={
@@ -923,7 +990,8 @@ async def refresh_live_prices(db: Session = Depends(get_db)):
                 "quotes": quotes,
                 "count": len(quotes),
                 "errors": errors,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "provider": "twelvedata" if use_twelvedata else "yahoo"
             }
         )
 
@@ -973,6 +1041,15 @@ async def update_market_data(db: Session = Depends(get_db)):
                 start_date = end_date - pd.Timedelta(days=7)
 
                 hist = fetcher.fetch_prices(ticker_symbol, start_date, end_date)
+
+                # If primary provider returns no data, fall back to Yahoo Finance
+                if hist.empty and provider != 'yahoo':
+                    try:
+                        from .price_fetchers import YahooFinanceFetcher
+                        yahoo_fetcher = YahooFinanceFetcher()
+                        hist = yahoo_fetcher.fetch_prices(ticker_symbol, start_date, end_date)
+                    except Exception:
+                        pass
 
                 if hist.empty:
                     errors.append(f"No data available for {stock.name}")

@@ -171,6 +171,10 @@ def resolve_ticker_from_name(stock_name: str, currency: str = None) -> Optional[
     Returns:
         Yahoo Finance ticker symbol if found, None otherwise
     """
+    # Handle None input
+    if stock_name is None:
+        return None
+
     # Extract potential ticker from name (first word, uppercase)
     potential_ticker = stock_name.split()[0].upper()
 

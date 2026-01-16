@@ -39,6 +39,7 @@ class Stock(Base):
     exchange = Column(String)
     currency = Column(String, default="EUR")  # Native trading currency
     yahoo_ticker = Column(String, nullable=True)  # Resolved Yahoo Finance ticker symbol
+    data_provider = Column(String, nullable=True)  # Price data provider: 'yahoo', 'twelvedata', 'fmp'
 
     transactions = relationship("Transaction", back_populates="stock")
     prices = relationship("StockPrice", back_populates="stock")

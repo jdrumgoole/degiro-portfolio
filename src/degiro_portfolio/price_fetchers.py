@@ -291,6 +291,80 @@ class TwelveDataFetcher(PriceFetcher):
         # No exchange suffix, return as-is (US stocks)
         return ticker
 
+    def fetch_latest_quote(self, ticker: str) -> Optional[dict]:
+        """
+        Fetch real-time quote from Twelve Data.
+
+        Uses the price endpoint for real-time pricing during market hours,
+        falls back to quote endpoint for end-of-day data.
+
+        Returns dict with: ticker, price, open, high, low, volume, change, change_percent, timestamp
+        """
+        td_ticker = self._normalize_ticker(ticker)
+
+        try:
+            # First try the price endpoint for real-time data
+            # This gives us the current market price during trading hours
+            price_data = self.client.price(symbol=td_ticker)
+
+            if price_data and hasattr(price_data, 'as_json'):
+                price_json = price_data.as_json()
+                current_price = float(price_json.get('price', 0))
+
+                # Get additional details from quote endpoint
+                quote = self.client.quote(symbol=td_ticker)
+
+                if quote and hasattr(quote, 'as_json'):
+                    quote_data = quote.as_json()
+
+                    # Use real-time price but other data from quote
+                    return {
+                        'ticker': ticker,  # Return original ticker format
+                        'price': current_price,  # Real-time price
+                        'open': float(quote_data.get('open', 0)),
+                        'high': float(quote_data.get('high', 0)),
+                        'low': float(quote_data.get('low', 0)),
+                        'volume': int(quote_data.get('volume', 0)),
+                        'change': float(quote_data.get('change', 0)),
+                        'change_percent': float(quote_data.get('percent_change', 0)),
+                        'timestamp': quote_data.get('datetime', price_json.get('datetime', '')),
+                    }
+
+            # Fallback to quote endpoint only
+            quote = self.client.quote(symbol=td_ticker)
+
+            if not quote or not hasattr(quote, 'as_json'):
+                return None
+
+            data = quote.as_json()
+
+            if not data:
+                return None
+
+            # Extract relevant fields
+            return {
+                'ticker': ticker,  # Return original ticker format
+                'price': float(data.get('close', 0)),
+                'open': float(data.get('open', 0)),
+                'high': float(data.get('high', 0)),
+                'low': float(data.get('low', 0)),
+                'volume': int(data.get('volume', 0)),
+                'change': float(data.get('change', 0)),
+                'change_percent': float(data.get('percent_change', 0)),
+                'timestamp': data.get('datetime', ''),
+            }
+
+        except Exception as e:
+            error_msg = str(e)
+            # Check for plan limitation error
+            if "available starting with Pro" in error_msg or "upgrade" in error_msg.lower():
+                print(f"  ⚠️  {td_ticker}: Real-time quote not available on current Twelve Data plan")
+            elif "symbol" in error_msg.lower() and "invalid" in error_msg.lower():
+                print(f"  ⚠️  {td_ticker}: Symbol not recognized by Twelve Data")
+            else:
+                print(f"  ❌ Twelve Data quote error for {td_ticker} (from {ticker}): {e}")
+            return None
+
     def fetch_prices(self, ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
         """Fetch from Twelve Data API."""
         # Convert ticker to Twelve Data format
@@ -332,7 +406,14 @@ class TwelveDataFetcher(PriceFetcher):
             return df[['open', 'high', 'low', 'close', 'volume']]
 
         except Exception as e:
-            print(f"  ❌ Twelve Data error for {td_ticker} (from {ticker}): {e}")
+            error_msg = str(e)
+            # Check for plan limitation error
+            if "available starting with Pro" in error_msg or "upgrade" in error_msg.lower():
+                print(f"  ⚠️  {td_ticker}: Not available on current Twelve Data plan (requires Pro or higher)")
+            elif "symbol" in error_msg.lower() and "invalid" in error_msg.lower():
+                print(f"  ⚠️  {td_ticker}: Symbol not recognized by Twelve Data")
+            else:
+                print(f"  ❌ Twelve Data error for {td_ticker} (from {ticker}): {e}")
             return pd.DataFrame()
 
 

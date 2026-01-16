@@ -240,7 +240,8 @@ def context(browser: Browser):
 def page(context: BrowserContext, server_process):
     """Create a new page for each test."""
     page = context.new_page()
-    page.goto(server_process)
+    # Increase timeout for page load - server can be slow during long test runs
+    page.goto(server_process, timeout=60000)  # 60 seconds
     yield page
     page.close()
 
