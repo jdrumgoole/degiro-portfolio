@@ -1795,30 +1795,15 @@
         }
 
         async function purgeDatabase() {
-            // First confirmation
-            const firstConfirm = confirm(
+            // Simple confirmation
+            const confirmed = confirm(
                 '⚠️ WARNING: This will DELETE ALL data from the database!\n\n' +
-                'This includes:\n' +
-                '• All stocks\n' +
-                '• All transactions\n' +
-                '• All price history\n' +
-                '• All indices\n\n' +
+                'This includes all stocks, transactions, price history, and indices.\n\n' +
                 'This action CANNOT be undone!\n\n' +
-                'Are you sure you want to continue?'
+                'Click OK to delete all data, or Cancel to abort.'
             );
 
-            if (!firstConfirm) {
-                return;
-            }
-
-            // Second confirmation (type confirmation)
-            const secondConfirm = prompt(
-                'To confirm deletion, please type: DELETE ALL DATA\n\n' +
-                '(Type exactly as shown, in capital letters)'
-            );
-
-            if (secondConfirm !== 'DELETE ALL DATA') {
-                alert('Purge cancelled - confirmation text did not match.');
+            if (!confirmed) {
                 return;
             }
 
