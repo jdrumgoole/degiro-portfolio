@@ -1,8 +1,19 @@
 # Data Providers
 
-DEGIRO Portfolio supports multiple data providers for fetching historical stock prices. You can choose the provider that best fits your needs.
+## What Are Data Providers?
+
+To show you stock prices and charts, the application needs to download historical price data from the internet. Different websites and services offer this data - these are called "data providers".
+
+**Good news**: The application comes configured with Yahoo Finance, which is free and works great for most people. You don't need to change anything unless you want to!
+
+This guide explains the available options if you want to:
+- Use a more reliable data source
+- Get data for stocks not available on Yahoo Finance
+- Access premium features
 
 ## Available Providers
+
+**Quick Recommendation**: Unless you have specific needs, stick with Yahoo Finance (the default) - it's free and works well.
 
 ### Yahoo Finance (Default)
 
@@ -107,23 +118,47 @@ TWELVEDATA_API_KEY=your_api_key_here
 | **Historical Data** | ✅ Many years | ✅ Extensive | ✅ Good |
 | **Support** | None | ✅ Official | ✅ Official |
 
-## Switching Providers
+## How to Switch Providers
 
-To switch providers, simply update your `.env` file:
+**Only do this if you need a different data source than Yahoo Finance.**
 
+### Step 1: Create a Configuration File
+
+1. Find the folder where you installed the application
+2. Create a new text file named `.env` (yes, it starts with a dot)
+3. Open it in a text editor (Notepad, TextEdit, etc.)
+
+**On Windows**: You may need to save it as `".env"` (with quotes) in Notepad to prevent Windows from adding `.txt` at the end.
+
+### Step 2: Add Your Configuration
+
+Copy and paste one of these into your `.env` file:
+
+**For Yahoo Finance (default, no key needed):**
 ```bash
-# Change from Yahoo to FMP
+PRICE_DATA_PROVIDER=yahoo
+```
+
+**For FMP (paid, requires API key):**
+```bash
 PRICE_DATA_PROVIDER=fmp
-FMP_API_KEY=your_api_key_here
+FMP_API_KEY=paste_your_api_key_here
 ```
 
-Then re-fetch prices:
-
+**For Twelve Data (free tier available):**
 ```bash
-uv run invoke fetch-prices
+PRICE_DATA_PROVIDER=twelvedata
+TWELVEDATA_API_KEY=paste_your_api_key_here
 ```
 
-The application will automatically use the new provider for all future price fetches.
+### Step 3: Save and Restart
+
+1. Save the `.env` file
+2. Stop the server: `degiro-portfolio stop`
+3. Start it again: `degiro-portfolio start`
+4. Click "📈 Update Market Data" in the web interface to download prices with the new provider
+
+**That's it!** The application will now use your chosen provider for all price data.
 
 ## Recommendations
 

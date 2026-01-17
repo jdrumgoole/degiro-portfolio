@@ -1,20 +1,30 @@
 # Features
 
-## Portfolio Management
+This page explains everything the application can do for you.
 
-### Transaction Import
+## Managing Your Portfolio
 
-- **Excel Import**: Import DEGIRO transaction exports directly from Excel
-- **Web Upload**: Upload new transaction files through the web interface
-- **Multi-currency Support**: Handles EUR, USD, and SEK with automatic conversion
-- **Automatic Processing**: Automatically creates stock records and links transactions
+### Importing Your Transactions
 
-### Price Data Management
+**What it does**: Takes your DEGIRO transaction history and imports it into the application.
 
-- **Historical Prices**: Fetches complete historical OHLCV data from Yahoo Finance
-- **One-click Updates**: Update all stock prices with a single button click
-- **Market Indices**: Track S&P 500 and Euro Stoxx 50 for performance comparison
-- **Efficient Storage**: SQLite database for fast data retrieval
+✅ **Drag and Drop Upload** - Click the upload button, select your Excel file from DEGIRO, done!
+✅ **Automatic Stock Detection** - The app automatically recognizes all your stocks
+✅ **Multi-Currency Support** - Works with EUR, USD, SEK, GBP and automatically converts to EUR
+✅ **Smart Processing** - Links all your buy/sell transactions together for each stock
+
+**How to use**: Click "📤 Upload Transactions" in the web interface, select your DEGIRO Excel export.
+
+### Getting Price Data
+
+**What it does**: Downloads historical stock prices so you can see charts and track performance.
+
+✅ **Automatic Download** - Prices download automatically when you upload transactions
+✅ **One-Click Updates** - Click "📈 Update Market Data" to refresh all prices
+✅ **Market Benchmarks** - Also downloads S&P 500 and Euro Stoxx 50 for comparison
+✅ **Fast Access** - All data stored on your computer for instant viewing
+
+**How to use**: Prices update automatically on upload. Click "Update Market Data" anytime to refresh.
 
 ## Portfolio Overview
 
@@ -41,89 +51,151 @@ Each stock displays:
 - **Company Names**: Links to Google search for investor relations
 - **Compact Design**: Space-efficient layout showing all key information
 
-## Interactive Charts
+## Understanding the Charts
 
-### Price Charts
+When you click on any stock card, you'll see four interactive charts:
 
-**Candlestick Charts**:
-- Open, High, Low, Close data visualization
-- Transaction markers showing buy/sell points
-- Zoom and pan capabilities
-- Hover for detailed information
+### 1. Price Chart (Candlestick Chart)
 
-### Position Value Charts
+**What it shows**: Historical stock price movements.
 
-**Position Percentage View**:
-- Shows position value as percentage (100% = break-even)
-- Helps visualize profit/loss over time
-- Transaction markers indicate purchase points
+**What you see**:
+- Green/red bars (candlesticks) show daily price ranges
+- Green = price went up that day
+- Red = price went down that day
+- Green markers = when you bought shares
+- Red markers = when you sold shares
 
-### Investment Tranche Tracking
+**What you can do**:
+- Zoom in/out with mouse wheel or pinch
+- Pan left/right by dragging
+- Hover over any point to see exact prices and dates
 
-**Individual Purchase Performance**:
-- Tracks each purchase separately
-- Shows performance of individual tranches
-- Helps understand which purchases are profitable
+**Why it's useful**: See how the stock price has moved over time and when you made your purchases.
 
-### Market Comparison
+### 2. Position Value % Chart
 
-**Index Comparison Charts**:
-- Compare stock performance to S&P 500
-- Compare to Euro Stoxx 50
-- Normalized charts for fair comparison
+**What it shows**: Whether you're making money or losing money on this stock.
 
-## Data Management
+**How to read it**:
+- Line above 100% = You're profitable (making money)
+- Line below 100% = You're at a loss (losing money)
+- Line at exactly 100% = Break-even (no profit, no loss)
 
-### Database Operations
+**Example**: If the line is at 120%, your position is worth 20% more than what you paid for it.
+
+**Why it's useful**: Instantly see if you're up or down on your investment.
+
+### 3. Investment Tranches Chart
+
+**What it shows**: Performance of each individual purchase separately.
+
+**What it does**:
+- If you bought a stock multiple times at different prices, this tracks each purchase separately
+- Shows which purchases are profitable and which aren't
+- Helps you understand your average cost
+
+**Why it's useful**: Some of your purchases might be profitable while others are at a loss - this chart shows you which is which.
+
+### 4. Market Comparison Chart
+
+**What it shows**: How your stock compares to the overall market.
+
+**What you see**:
+- Your stock's performance (line)
+- S&P 500 performance (US market index)
+- Euro Stoxx 50 performance (European market index)
+
+**How to read it**:
+- If your stock line is higher = Beating the market (doing better)
+- If your stock line is lower = Underperforming the market (doing worse)
+
+**Why it's useful**: Helps you understand if your stock is actually performing well or if the whole market is just going up/down.
+
+## Managing Your Data
+
+### Clearing All Data
+
+**What it does**: Removes all your transactions and price data if you want to start fresh.
+
+**How to use**:
+1. Scroll to the bottom of the dashboard
+2. Click the red "⚠️ Delete All Data" button
+3. Confirm the deletion
+
+**Warning**: This permanently deletes everything! You'll need to re-upload your transactions.
+
+**When to use it**:
+- You want to start over from scratch
+- You uploaded the wrong file and want to clean up
+- You're testing the application with demo data
+
+### Viewing Information
+
+**Command-line tools** (optional, for advanced users):
 
 ```bash
-# Show database information
+# See how many stocks and transactions you have
 uv run invoke db-info
 
-# View server logs
+# View what the server is doing (useful for troubleshooting)
 uv run invoke logs
-
-# Purge all data
-uv run invoke purge-data
-
-# Clean generated files
-uv run invoke clean
 ```
-
-### Update Operations
-
-- **Fetch Prices**: Update historical price data
-- **Fetch Indices**: Update market index data
-- **Re-import**: Re-import transactions from updated Excel files
 
 ## Multi-Currency Support
 
-The application handles multiple currencies:
+**What it does**: The app works with stocks in different currencies and converts everything to EUR for easy comparison.
 
-- **EUR**: Euro
-- **USD**: US Dollar
-- **SEK**: Swedish Krona
+**Supported currencies**:
+- 🇪🇺 EUR (Euro)
+- 🇺🇸 USD (US Dollar)
+- 🇸🇪 SEK (Swedish Krona)
+- 🇬🇧 GBP (British Pound)
 
-Price charts automatically display in the transaction currency, ensuring accurate visualization.
+**How it works**:
+- Stock prices display in their original currency
+- Position values automatically convert to EUR
+- Exchange rates update daily
+- Charts show prices in the currency you bought/sold in
 
-## API Features
+**Example**: If you own US stocks (priced in USD) and European stocks (priced in EUR), the app shows your total portfolio value in EUR so you can easily compare them.
 
-The application exposes a RESTful API for:
+## What You Can Track
 
-- Fetching portfolio holdings
-- Retrieving stock prices and transactions
-- Getting chart data
-- Uploading transaction files
-- Updating market data
+The application shows you:
 
-See [API Reference](api-reference.md) for complete endpoint documentation.
+### Portfolio Level
+✅ **Total Portfolio Value** - Sum of all your investments in EUR
+✅ **Overall Gain/Loss** - How much money you've made or lost overall
+✅ **Number of Holdings** - How many different stocks you own
 
-## Performance Metrics
+### Individual Stock Level
+✅ **Current Value** - What your shares are worth now
+✅ **Purchase Price** - What you originally paid
+✅ **Profit/Loss** - Difference between current value and what you paid
+✅ **Percentage Return** - Your profit/loss as a percentage
+✅ **Daily Change** - How much the stock moved today
+✅ **Share Count** - Number of shares you own
 
-Track key portfolio metrics:
+### Performance Tracking
+✅ **Historical Performance** - How your stocks have performed over time
+✅ **Market Comparison** - How you're doing vs S&P 500 and Euro Stoxx 50
+✅ **Transaction History** - All your buy/sell transactions with dates and prices
+✅ **Tranche Performance** - Performance of each individual purchase
 
-- Total portfolio value
-- Total gain/loss
-- Individual stock performance
-- Position-level profit/loss
-- Market-relative performance
+## Additional Features
+
+### Quick Links
+- Click any **company name** to search Google for investor relations info
+- Click any **ticker symbol** to view the stock on Google Finance
+- Click "Update Market Data" to refresh all prices instantly
+
+### Data Privacy
+- All data stored locally on your computer
+- No account required
+- No data sent to external servers (except to download stock prices)
+
+### Technical Features (for developers)
+- RESTful API for programmatic access
+- SQLite database for data storage
+- Complete API documentation available in [API Reference](api-reference.md)

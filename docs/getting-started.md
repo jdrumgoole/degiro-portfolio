@@ -1,34 +1,69 @@
 # Getting Started
 
+This guide will help you install and use DEGIRO Portfolio Tracker in just a few minutes.
+
 ## Installation
 
-Install the package from PyPI:
+### Option 1: Simple Installation (Recommended for Most Users)
+
+If you have Python installed on your computer, open Terminal (Mac/Linux) or Command Prompt (Windows) and run:
 
 ```bash
 pip install degiro-portfolio
 ```
 
-Or with uv:
+This downloads and installs the application automatically.
+
+**Don't have Python?** Download it from [python.org](https://www.python.org/downloads/) - you need Python 3.11 or newer.
+
+### Option 2: For Developers
+
+If you prefer using `uv` (a faster Python package manager):
 
 ```bash
 uv pip install degiro-portfolio
 ```
 
+### Option 3: From Source Code
+
+If you downloaded the source code from GitHub:
+
+1. Open Terminal/Command Prompt
+2. Navigate to the folder where you downloaded the code
+3. Run: `uv sync`
+
 ## Quick Start
 
 ### 1. Start the Server
+
+After installation, start the application by running:
 
 ```bash
 degiro-portfolio start
 ```
 
-The server will start on http://localhost:8000
+**On Windows**, you might need to run:
+```bash
+python -m degiro_portfolio start
+```
 
-### 2. Open in Your Browser
+You should see a message like: `Server started on port 8000`
 
-Navigate to http://localhost:8000 in your web browser.
+**What's a server?** Think of it as a small program running on your computer that powers the web interface. It only runs on your computer - nothing is sent to the internet except to download stock prices.
 
-### 3. Upload Your Transaction Data
+### 2. Open the Dashboard
+
+Open your web browser (Chrome, Firefox, Safari, etc.) and go to:
+
+```
+http://localhost:8000
+```
+
+You should now see the portfolio dashboard!
+
+**What's localhost?** It's a special address that means "this computer". The dashboard only runs on your computer and can't be accessed from anywhere else.
+
+### 3. Upload Your First Transaction File
 
 #### Exporting from DEGIRO
 
@@ -56,28 +91,59 @@ The application will automatically:
 - Performance metrics
 - Market index comparisons
 
-### 4. Update Market Data
+### 4. Refresh Stock Prices (Optional)
 
-Click the **📈 Update Market Data** button to refresh live prices and latest market data.
+Stock prices are automatically downloaded when you upload transactions. To get the latest prices at any time:
 
-## Supported Transaction Format
+1. Click the **📈 Update Market Data** button at the top of the page
+2. Wait a moment while prices update (you'll see a loading indicator)
+3. The charts and stock cards will refresh with the latest data
 
-The application expects DEGIRO's standard Excel export format with columns:
-- Date
-- Time
-- Product (stock name)
-- ISIN
-- Exchange
-- Quantity
-- Price
-- Local value
-- Value (EUR)
-- Exchange rate
-- Transaction and/or third
+**How often should I update?** Stock markets only change during trading hours (weekdays), so updating once per day is usually sufficient.
 
-## Optional: Configure Data Provider
+## Understanding Your Dashboard
 
-By default, the application uses **Twelve Data** for stock prices. You can configure alternative providers:
+After uploading transactions, you'll see:
+
+### Portfolio Summary
+Shows your total portfolio value and overall gain/loss percentage.
+
+### Stock Cards
+Each card shows:
+- Company name (click to search for investor info)
+- Number of shares you own
+- Current price with today's change (▲ up / ▼ down)
+- Total value of your position in EUR
+- Ticker symbol (click to view on Google Finance)
+- Exchange where it trades
+
+### Charts
+Click any stock card to see:
+1. **Price Chart** - Historical prices with your buy/sell transactions marked
+2. **Position Value %** - Shows if you're profitable (above 100% = profit)
+3. **Investment Tranches** - Performance of each individual purchase
+4. **Market Comparison** - How your stock compares to S&P 500 and Euro Stoxx 50
+
+## What File Format Is Supported?
+
+The application works with DEGIRO's standard Excel export format. Your export should include these columns:
+- Date - Transaction date
+- Time - Transaction time
+- Product - Stock name
+- ISIN - International stock identifier
+- Exchange - Which stock exchange
+- Quantity - Number of shares
+- Price - Price per share
+- Local value - Transaction value in stock's currency
+- Value (EUR) - Transaction value in EUR
+- Exchange rate - Currency conversion rate
+- Transaction and/or third - Transaction type and fees
+
+**Don't worry about the format** - if you export from DEGIRO correctly, the format will be correct automatically.
+
+## Advanced: Configure Data Provider (Optional)
+
+By default, the application uses **Yahoo Finance** for stock prices - it's free and works great for most stocks. You can switch to other providers if needed:
 
 ### Available Providers
 
@@ -122,17 +188,96 @@ degiro-portfolio status    # Check if server is running
 
 ## Troubleshooting
 
-### No price data showing
-- Make sure you clicked "Upload Transactions" - this triggers automatic price fetching
-- Click "Update Market Data" to refresh prices
+### The application won't start
+
+**Problem**: Running `degiro-portfolio start` gives an error.
+
+**Solutions**:
+- Make sure Python 3.11+ is installed: Run `python --version` to check
+- Try: `python -m degiro_portfolio start` instead
+- Check if port 8000 is already in use by another program
+- Restart your computer and try again
+
+### Can't open the dashboard in my browser
+
+**Problem**: Browser shows "This site can't be reached" or "Connection refused".
+
+**Solutions**:
+- Make sure the server is running: Run `degiro-portfolio status`
+- Try the URL exactly: `http://localhost:8000` (not https://)
+- Try `http://127.0.0.1:8000` instead
+- Check if your firewall is blocking port 8000
+
+### My stocks don't show any prices
+
+**Problem**: Stock cards show no prices or values.
+
+**Solutions**:
+- Wait a few moments - prices download in the background after upload
+- Click the "📈 Update Market Data" button
 - Check your internet connection
+- Some stocks might not be available on Yahoo Finance (rare for major stocks)
+- Check the browser console for error messages (press F12)
 
-### Stock not found
-- Some stocks may not be available in all data providers
-- Try switching to Yahoo Finance (no API key needed)
-- Check that the ISIN in your transactions matches the stock listing
+### A specific stock can't be found
 
-### Upload failed
-- Verify you're using DEGIRO's Excel export format
-- Check that the file is not corrupted
-- Ensure the file contains valid transaction data
+**Problem**: One or more stocks show "Price data unavailable".
+
+**Solutions**:
+- Check the stock's ISIN in your DEGIRO export is correct
+- Try updating market data again
+- The stock might be delisted or only available on regional exchanges
+- Consider configuring a different data provider (see Advanced section)
+
+### Upload button doesn't work
+
+**Problem**: Clicking upload does nothing or shows an error.
+
+**Solutions**:
+- Make sure you're uploading an Excel file (.xlsx)
+- Verify it's a DEGIRO transaction export (not portfolio or another report)
+- Check the file isn't corrupted - try opening it in Excel first
+- Look at the browser console (F12) for error messages
+- Make sure the file has the expected columns (Date, Product, ISIN, etc.)
+
+### The page loads but looks broken
+
+**Problem**: Layout is weird, buttons missing, or page doesn't display correctly.
+
+**Solutions**:
+- Refresh the page (Ctrl+R or Cmd+R)
+- Clear your browser cache
+- Try a different browser (Chrome, Firefox, Safari)
+- Make sure JavaScript is enabled in your browser
+
+### Charts don't appear
+
+**Problem**: Stock cards show but clicking them doesn't show charts.
+
+**Solutions**:
+- Check browser console for JavaScript errors (press F12)
+- Make sure you have price data (see "stocks don't show prices" above)
+- Try refreshing the page
+- Disable browser extensions that might block content
+
+### Server keeps stopping or crashing
+
+**Problem**: Server stops running after a while.
+
+**Solutions**:
+- Check the logs: `degiro-portfolio logs` (or check server.log file)
+- Make sure you have enough disk space
+- Check if your computer goes to sleep - keep it awake
+- Run in a terminal that stays open (don't close the terminal window)
+
+### Need More Help?
+
+If you're still stuck:
+1. Check the logs for error messages: `degiro-portfolio logs`
+2. Look at the [API Reference](api-reference.md) for technical details
+3. Visit the [GitHub Issues](https://github.com/YOUR_REPO/issues) page
+4. Include these details when asking for help:
+   - What you were trying to do
+   - What happened instead
+   - Any error messages you saw
+   - Your operating system (Windows/Mac/Linux)

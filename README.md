@@ -1,307 +1,372 @@
-# DEGIRO Portfolio
+# DEGIRO Portfolio Tracker
 
-A web application for tracking and visualizing your DEGIRO portfolio with interactive charts and performance analytics.
+A desktop application that helps you track and visualize your DEGIRO investment portfolio with beautiful charts and performance metrics.
 
-## Features
+## What Does This Do?
 
-### Portfolio Management
-- Import DEGIRO transaction exports from Excel spreadsheets
-- Upload new transaction files directly via web interface
-- Automatic fetching of historical stock prices using Yahoo Finance
-- Automatic market index data loading on upload (S&P 500, Euro Stoxx 50)
-- One-click market data updates for all holdings
-- Multi-currency support (EUR, USD, SEK, GBP) with **live exchange rate conversion** (v0.3.0)
-- SQLite database for efficient data storage and retrieval
+This application takes your DEGIRO transaction exports (the Excel files you download from DEGIRO) and creates an interactive dashboard where you can:
 
-### Portfolio Overview
-- Real-time portfolio summary with total value and gain/loss
-- Stock cards showing:
-  - Current holdings and share count
-  - Latest closing price with daily percentage change (▲/▼)
-  - **Position value in EUR with live currency conversion** (NEW in v0.3.0)
-  - Yahoo Finance ticker symbol (clickable → Google Finance)
-  - Exchange information
-  - Transaction count
-- **Live exchange rates API** for accurate EUR conversion (NEW in v0.3.0)
-- Market data status showing latest price update date
-- Clickable company names linking to investor relations search
-- Compact, space-efficient design
+- **See all your stocks in one place** - View your current holdings with live prices
+- **Track your gains and losses** - See how much money you've made or lost on each stock
+- **View beautiful charts** - Interactive price charts showing your buy/sell transactions
+- **Compare against market indices** - See how your stocks perform vs S&P 500 and Euro Stoxx 50
+- **Monitor multiple currencies** - Automatic conversion to EUR for stocks in USD, SEK, GBP
+- **Upload new transactions easily** - Just drag and drop your Excel file into the web interface
 
-### Interactive Charts
-- Candlestick price charts with buy/sell transaction markers
-- Auto-refreshing stock charts (updates every minute)
-- Investment tranche tracking showing individual purchase performance
-- Position value percentage charts (where 100% = break even)
-- Market index comparison (S&P 500, Euro Stoxx 50)
-- Portfolio valuation over time with latest date annotation
-- Automatic alignment of transaction markers with price bars
-- Zoom, pan, and hover for detailed information
-- Currency-aware visualization (transactions match price data)
+All data is stored securely on your own computer - nothing is sent to external servers.
 
 ## Screenshots
 
-### Portfolio Overview
+### Portfolio Dashboard
 ![Portfolio Overview](screenshots/portfolio-overview.png)
-*Interactive portfolio dashboard showing holdings summary, stock price charts, position value percentage, investment tranche tracking, and market index comparison*
+*Your portfolio at a glance with live prices and performance charts*
 
-### Stock Detail View
+### Individual Stock View
 ![Stock Detail - Microsoft](screenshots/stock-detail-microsoft.png)
-*Detailed view showing Microsoft's performance with multiple chart types including price history, position value %, investment tranches, and performance vs market indices*
+*Detailed charts showing price history, your buy/sell transactions, and market comparison*
 
-## Technology Stack
+## Installation
 
-- **Backend**: FastAPI (Python)
-- **Database**: SQLite
-- **Data Processing**: Pandas, SQLAlchemy
-- **Stock Data**: yfinance
-- **Frontend**: Vanilla JavaScript with Plotly.js for charts
-- **Package Management**: uv
+### Prerequisites
 
-## Quick Start
+Before you begin, you need:
+1. **Python 3.11 or newer** - [Download Python here](https://www.python.org/downloads/)
+2. **uv package manager** - Install it by opening Terminal/Command Prompt and running:
+   ```bash
+   pip install uv
+   ```
+
+### Step 1: Download the Application
+
+Download or clone this repository to your computer.
+
+### Step 2: Install
+
+Open Terminal (Mac/Linux) or Command Prompt (Windows), navigate to the folder where you downloaded the application, and run:
 
 ```bash
-# Install dependencies
 uv sync
-
-# Setup database and import data (one-time setup)
-uv run invoke setup
-
-# Start the server
-./degiro-portfolio start
-
-# Open browser to http://localhost:8000
 ```
 
-## CLI Commands
+This will download and install all the necessary components. It may take a few minutes the first time.
 
-The `degiro-portfolio` CLI provides easy server management:
+### Step 3: Prepare Your Data (First Time Only)
+
+If you want to try the application with sample data first:
+
+```bash
+uv run invoke setup
+```
+
+This will import example stock transactions and download their price history.
+
+**Or**, to import your own DEGIRO data:
+
+1. Log into your DEGIRO account
+2. Go to Activity → Transactions
+3. Export your transactions as an Excel file
+4. Name it `Transactions.xlsx` and place it in the same folder as this application
+5. Run: `uv run invoke import-data`
+
+### Step 4: Start the Application
+
+Run this command:
+
+```bash
+./degiro-portfolio start
+```
+
+**On Windows**, use:
+```bash
+python degiro-portfolio start
+```
+
+The application will start, and you should see a message like "Server started on port 8000".
+
+### Step 5: Open the Dashboard
+
+Open your web browser and go to:
+```
+http://localhost:8000
+```
+
+You should now see your portfolio dashboard!
+
+## Using the Application
+
+### Managing the Server
+
+The application runs a small web server on your computer. You can control it with these commands:
 
 ```bash
 ./degiro-portfolio start    # Start the server
 ./degiro-portfolio stop     # Stop the server
 ./degiro-portfolio restart  # Restart the server
-./degiro-portfolio status   # Check server status
+./degiro-portfolio status   # Check if it's running
 ```
 
-## Invoke Tasks
+**On Windows**, replace `./degiro-portfolio` with `python degiro-portfolio` in all commands above.
 
-Additional tasks are available via `invoke`:
+### Uploading New Transactions
 
-```bash
-# Server Management
-uv run invoke start          # Start the server
-uv run invoke stop           # Stop the server
-uv run invoke restart        # Restart the server
-uv run invoke status         # Check server status
-uv run invoke dev            # Start development server with auto-reload
-uv run invoke logs           # Show server logs
+To add new transactions to your portfolio:
 
-# Data Management
-uv run invoke setup          # Import data and fetch prices
-uv run invoke import-data    # Import transactions from Excel
-uv run invoke fetch-prices   # Fetch latest stock prices
-uv run invoke fetch-indices  # Fetch market index data
-uv run invoke db-info        # Show database information
+1. **Via Web Interface** (Easiest):
+   - Open the dashboard in your browser
+   - Click the "Upload Transactions" button
+   - Select your DEGIRO Excel export file
+   - Wait for the upload to complete
+   - The app will automatically download the latest prices
 
-# Testing
-uv run invoke test           # Run all tests
-uv run invoke test-cov       # Run tests with coverage report
-uv run invoke test-cov-html  # Generate HTML coverage report
-uv run invoke test-unit      # Run only unit tests (fast)
-uv run invoke test-integration  # Run browser integration tests
+2. **Via Command Line** (Alternative):
+   ```bash
+   uv run invoke import-data
+   ```
 
-# Utilities
-uv run invoke clean          # Clean generated files
-uv run invoke --list         # Show all available tasks
-```
+### Updating Stock Prices
 
-## Testing
+Stock prices automatically update when you upload transactions. To manually refresh all prices:
 
-The project includes a comprehensive test suite covering UI, API endpoints, and interactive features with **70% code coverage**.
+1. **Via Web Interface** (Easiest):
+   - Open the dashboard
+   - Click the "Update Market Data" button
+   - Wait for prices to update (this may take a minute)
 
-```bash
-# Run all tests
-uv run pytest tests/ -v
+2. **Via Command Line** (Alternative):
+   ```bash
+   uv run invoke fetch-prices
+   ```
 
-# Run tests with coverage report
-uv run invoke test-cov
+### Clearing All Data
 
-# Generate HTML coverage report
-uv run invoke test-cov-html
+If you want to start fresh and remove all transactions:
 
-# Run only unit tests (fast)
-uv run invoke test-unit
+1. Open the dashboard
+2. Scroll to the bottom of the page
+3. Click the red "⚠️ Delete All Data" button
+4. Confirm the deletion
 
-# Run only integration tests (browser)
-uv run invoke test-integration
+**Warning**: This permanently deletes all your data. You'll need to re-upload your transactions.
 
-# Run specific test file
-uv run pytest tests/test_portfolio_overview.py -v
-```
+## Understanding Your Portfolio
 
-**Test Coverage (70%):**
-- Portfolio overview page (17 tests)
-- Stock charts and visualizations (15 tests)
-- API endpoints (14 tests)
-- Interactive features (19 tests)
-- Unit tests for core modules (55+ tests)
-  - FastAPI endpoints
-  - Index fetching
-  - Price fetching
-  - Ticker resolution
+### Portfolio Summary (Top of Page)
 
-See [tests/README.md](tests/README.md) for detailed testing documentation.
+Shows your total investment value and whether you're up or down overall.
 
-## Project Structure
+### Stock Cards
 
-```
-degiro-portfolio/
-├── src/degiro_portfolio/
-│   ├── __init__.py
-│   ├── database.py          # SQLAlchemy models and database config
-│   ├── import_data.py       # Import transactions from Excel
-│   ├── fetch_prices.py      # Fetch historical stock prices
-│   ├── fetch_indices.py     # Fetch market index data
-│   ├── main.py              # FastAPI application
-│   └── static/
-│       └── index.html       # Frontend interface
-├── tests/
-│   ├── conftest.py          # Pytest fixtures
-│   ├── test_portfolio_overview.py  # UI tests
-│   ├── test_stock_charts.py        # Chart tests
-│   ├── test_api_endpoints.py       # API tests
-│   ├── test_interactive_features.py # Interaction tests
-│   └── README.md            # Testing documentation
-├── degiro-portfolio         # CLI script for server management
-├── tasks.py                 # Invoke tasks for automation
-├── Transactions.xlsx        # Your transaction data file
-├── example_data.xlsx        # Example demo data (AI & European stocks)
-├── degiro-portfolio.db      # SQLite database (generated)
-└── pyproject.toml           # Project dependencies
-```
+Each stock shows:
+- **Company name** - Click it to search for investor relations info
+- **Number of shares** - How many shares you currently own
+- **Current price** - Latest closing price with today's change (▲ up, ▼ down)
+- **Position value** - Total value of your holdings in that stock (in EUR)
+- **Ticker symbol** - Click it to view on Google Finance
+- **Exchange** - Which stock exchange it trades on
+- **Transaction count** - How many times you bought/sold this stock
+
+### Charts
+
+Click any stock card to see detailed charts:
+
+1. **Price Chart** - Shows historical price movement with candlesticks
+   - Green markers = your buy transactions
+   - Red markers = your sell transactions
+   - Hover over any point to see details
+
+2. **Position Value %** - Shows if you're profitable
+   - Above 100% = making money (profit)
+   - Below 100% = losing money (loss)
+   - The line shows how your position value has changed over time
+
+3. **Investment Tranches** - Tracks each purchase separately
+   - Shows performance of individual buy transactions
+   - Helps you see which purchases are profitable
+
+4. **Market Comparison** - Compares your stock against major indices
+   - S&P 500 (US market)
+   - Euro Stoxx 50 (European market)
+
+You can zoom, pan, and hover over charts to explore the data in detail.
+
+## Troubleshooting
+
+### The server won't start
+- Make sure port 8000 isn't already in use
+- Check if another instance is running: `./degiro-portfolio status`
+- Try restarting: `./degiro-portfolio restart`
+
+### My stocks don't show prices
+- Make sure you've run the price update: click "Update Market Data" button
+- Some stocks may not be available on Yahoo Finance
+- Check your internet connection
+
+### The upload fails
+- Make sure you're uploading a DEGIRO transaction export (Excel format)
+- Check that the file isn't corrupted
+- Verify the file contains the expected columns (Date, Product, ISIN, Quantity, Price, etc.)
+
+### I see a "Connection refused" error
+- The server isn't running - start it with: `./degiro-portfolio start`
+- Check if it's running: `./degiro-portfolio status`
+
+### Exchange rates aren't loading
+- The app uses a free exchange rate API that may occasionally be slow
+- If conversion fails, values default to the original currency
+- Refresh the page after a few seconds
+
+## Features
+
+### What's Included
+
+✅ Import DEGIRO transaction exports (Excel files)
+✅ Upload new transactions via web interface
+✅ Automatic historical price downloads from Yahoo Finance
+✅ Live exchange rate conversion (EUR, USD, SEK, GBP)
+✅ Interactive candlestick charts with transaction markers
+✅ Portfolio performance tracking
+✅ Market index comparison (S&P 500, Euro Stoxx 50)
+✅ Real-time portfolio value calculations
+✅ Multi-currency support with automatic conversion
+✅ One-click market data updates
+✅ Database management (purge/reset functionality)
+
+### What You Can Track
+
+- Current holdings and share counts
+- Purchase prices vs current prices
+- Gains and losses for each position
+- Transaction history with dates and prices
+- Historical price movements
+- Performance vs market indices
+- Portfolio value over time
+- Individual investment tranche performance
+
+## Data Privacy
+
+All your financial data stays on your computer. The application:
+- ✅ Stores data in a local database file (`degiro-portfolio.db`)
+- ✅ Only connects to the internet to download stock prices from Yahoo Finance
+- ✅ Only connects to exchange rate APIs for currency conversion
+- ❌ Does NOT send your transaction data anywhere
+- ❌ Does NOT require creating an account
+- ❌ Does NOT share or sell your data
 
 ## Example Data
 
-The repository includes `example_data.xlsx` with sample AI and European tech stock transactions for demonstration purposes. To try the application with this demo data:
+Want to try the app before importing your own data? The repository includes sample transactions:
 
 ```bash
-# Import the example data
-uv run python -c "from src.degiro_portfolio.import_data import import_transactions; import_transactions('example_data.xlsx')"
-
-# Fetch prices for the stocks
-uv run python src/degiro_portfolio/fetch_prices.py
-
-# Fetch market indices
-uv run python src/degiro_portfolio/fetch_indices.py
-
-# Start the server
-./degiro-portfolio start
+uv run invoke setup
 ```
 
-The example portfolio includes:
+This imports a demo portfolio with:
+- **US Tech Stocks**: NVIDIA, Microsoft, Meta, Google, AMD
+- **European Tech Stocks**: ASML, SAP, Infineon, Nokia, Ericsson, STMicroelectronics
 
-**US Tech Stocks:**
-- NVIDIA (NVDA) - 129 shares across 4 purchases
-- Microsoft (MSFT) - 30 shares across 3 purchases
-- Meta (META) - 68 shares across 2 purchases
-- Alphabet/Google (GOOGL) - 57 shares across 2 purchases
-- AMD - 97 shares across 3 purchases
+After importing, start the server and explore the features!
 
-**European Tech Stocks:**
-- ASML (Netherlands) - 33 shares across 3 purchases
-- SAP (Germany) - 75 shares across 2 purchases
-- Infineon (Germany) - 400 shares across 3 purchases
-- Nokia (Finland) - 900 shares across 2 purchases
-- Ericsson (Sweden) - 1400 shares across 2 purchases
-- STMicroelectronics (France) - 240 shares across 2 purchases
+## Updating the Application
 
-## Detailed Setup
+When a new version is released:
 
-1. **Install dependencies**:
-   ```bash
-   uv sync
-   ```
+1. Stop the server: `./degiro-portfolio stop`
+2. Download the latest version
+3. Run: `uv sync` to update dependencies
+4. Start the server: `./degiro-portfolio start`
 
-2. **Import transaction data**:
-   ```bash
-   uv run invoke import-data
-   # or: uv run python src/stockchart/import_data.py
-   ```
+Your data is preserved in the `degiro-portfolio.db` file and won't be lost during updates.
 
-3. **Fetch historical stock prices**:
-   ```bash
-   uv run invoke fetch-prices
-   # or: uv run python src/stockchart/fetch_prices.py
-   ```
+## Advanced: Command Line Options
 
-4. **Start the web server**:
-   ```bash
-   ./degiro-portfolio start
-   # or: uv run invoke start
-   ```
+For users comfortable with command-line tools, additional commands are available:
 
-5. **Open your browser**:
-   Navigate to http://localhost:8000
-
-## Usage
-
-### Viewing Your Portfolio
-
-Once the application is running, the main page displays:
-- A grid of cards showing all current holdings with share counts
-- Click on any stock card to view its detailed price chart
-- Charts show candlestick price data with buy/sell transaction markers
-- Statistics panel shows key metrics for the selected stock
-
-### Updating Data
-
-To update with new transactions:
 ```bash
-# Re-import the updated Excel file
-uv run python src/stockchart/import_data.py
+# Data Management
+uv run invoke import-data      # Import from Transactions.xlsx
+uv run invoke fetch-prices     # Download latest stock prices
+uv run invoke fetch-indices    # Download market index data
+uv run invoke db-info          # Show database statistics
 
-# Fetch latest prices
-uv run python src/stockchart/fetch_prices.py
+# Server Management
+uv run invoke start            # Start server
+uv run invoke stop             # Stop server
+uv run invoke restart          # Restart server
+uv run invoke status           # Check server status
+uv run invoke logs             # View server logs
+uv run invoke dev              # Start with auto-reload (for development)
+
+# Testing (for developers)
+uv run invoke test             # Run all tests
+uv run invoke test-cov         # Run tests with coverage report
+
+# Utilities
+uv run invoke clean            # Remove temporary files
+uv run invoke --list           # Show all available commands
 ```
 
-## API Endpoints
+## Technical Details
 
-- `GET /` - Main web interface
-- `GET /api/holdings` - List all current stock holdings (with latest prices and daily changes)
-- `GET /api/stock/{stock_id}/prices` - Historical prices for a stock
-- `GET /api/stock/{stock_id}/transactions` - Transaction history for a stock
-- `GET /api/stock/{stock_id}/chart-data` - Combined data for chart visualization (includes position percentage)
-- `GET /api/portfolio-performance` - Portfolio-wide performance metrics
-- `GET /api/market-data-status` - Get the most recent market data update date
-- `POST /api/upload-transactions` - Upload new transaction Excel file
-- `POST /api/update-market-data` - Fetch latest market data for all stocks and indices
+For developers and technical users:
 
-## Database Schema
+**Technology Stack:**
+- Backend: FastAPI (Python web framework)
+- Database: SQLite (file-based database)
+- Data Processing: Pandas, SQLAlchemy
+- Stock Data: yfinance (Yahoo Finance API)
+- Charts: Plotly.js
+- Frontend: Vanilla JavaScript (no framework)
 
-### Stocks Table
-- Stock metadata (symbol, name, ISIN, exchange)
+**Database Schema:**
+- `stocks` - Stock metadata (symbol, name, ISIN, exchange)
+- `transactions` - Buy/sell history with dates, quantities, prices
+- `stock_prices` - Historical OHLCV (Open, High, Low, Close, Volume) data
+- `indices` - Market index metadata
+- `index_prices` - Historical index values
 
-### Transactions Table
-- Transaction history (date, quantity, price, fees, transaction type, currency)
-- Links to stocks via foreign key
+**API Endpoints:**
+- `GET /` - Web interface
+- `GET /api/holdings` - List current holdings with prices
+- `GET /api/stock/{id}/prices` - Historical price data
+- `GET /api/stock/{id}/transactions` - Transaction history
+- `GET /api/stock/{id}/chart-data` - Combined chart data
+- `GET /api/portfolio-performance` - Portfolio metrics
+- `GET /api/market-data-status` - Last update timestamp
+- `GET /api/exchange-rates` - Current exchange rates
+- `POST /api/upload-transactions` - Upload transaction file
+- `POST /api/update-market-data` - Refresh all prices
+- `POST /api/purge-database` - Delete all data
 
-### Stock Prices Table
-- Historical OHLCV (Open, High, Low, Close, Volume) data
-- Links to stocks via foreign key
+**Testing:**
+The project includes 125 automated tests covering UI, API, and data processing with 70% code coverage.
 
-### Indices Table
-- Market index metadata (symbol, name)
+**Project Structure:**
+```
+degiro-portfolio/
+├── src/degiro_portfolio/      # Application code
+│   ├── main.py                # Web server
+│   ├── database.py            # Database models
+│   ├── import_data.py         # Transaction importer
+│   ├── fetch_prices.py        # Price downloader
+│   └── static/index.html      # Web interface
+├── tests/                     # Automated tests
+├── degiro-portfolio           # Server management script
+├── tasks.py                   # Build automation
+└── degiro-portfolio.db        # Your data (created on first run)
+```
 
-### Index Prices Table
-- Historical closing prices for market indices
-- Links to indices via foreign key
+## Getting Help
 
-## Notes
+If you encounter issues:
 
-- The application uses Yahoo Finance ticker symbols mapped from ISIN codes
-- Historical data starts from the earliest transaction date for each stock
-- Charts are interactive and support zooming, panning, and hovering for details
-- Transaction markers are uniform size for clean visualization
-- Stock cards display live prices and daily percentage changes
-- Company names and ticker symbols are clickable for quick access to external resources
-- See [PRICING_NOTES.md](PRICING_NOTES.md) for details on price data timing and differences from broker platforms
+1. Check the Troubleshooting section above
+2. Make sure you're running the latest version
+3. Review the logs: `uv run invoke logs`
+4. Open an issue on GitHub with:
+   - What you were trying to do
+   - What happened instead
+   - Any error messages you saw
+
+## License
+
+See LICENSE file for details.
