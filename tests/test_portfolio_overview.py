@@ -178,7 +178,8 @@ def test_stock_card_click_loads_chart(page: Page):
 def test_portfolio_summary_shows_values(page: Page):
     """Test that portfolio summary displays value information."""
     # Wait for portfolio summary to be visible
-    page.wait_for_selector(".portfolio-summary", state="visible", timeout=10000)
+    # Increased timeout to account for exchange rates fetch (5s timeout) + processing
+    page.wait_for_selector(".portfolio-summary", state="visible", timeout=15000)
 
     summary = page.locator(".portfolio-summary")
 
