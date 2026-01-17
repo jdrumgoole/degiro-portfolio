@@ -1188,7 +1188,7 @@ top -p $(pgrep -f degiro-portfolio)
 ### Support
 
 For deployment issues:
-- Check [GitHub Issues](https://github.com/your-username/degiro-portfolio/issues)
+- Check [GitHub Issues](https://github.com/jdrumgoole/degiro-portfolio/issues)
 - Review application logs: `./degiro-portfolio logs`
 - Verify configuration in `.env`
 - Test in development environment first
@@ -1200,7 +1200,7 @@ For deployment issues:
 
 ### Project Links
 
-- **GitHub Repository**: https://github.com/your-username/degiro-portfolio
+- **GitHub Repository**: https://github.com/jdrumgoole/degiro-portfolio
 - **PyPI Package**: https://pypi.org/project/degiro-portfolio/
 - **Documentation**: https://degiro-portfolio.readthedocs.io/
 
