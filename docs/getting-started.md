@@ -289,7 +289,7 @@ degiro-portfolio status    # Check if server is running
 
 If you're still stuck:
 1. Check the logs for error messages: `degiro-portfolio logs`
-2. Visit the [GitHub Issues](https://github.com/jdrumgoole/degiro-portfolio/issues) page to report the problem
+2. Visit the [GitHub Issues](https://github.com/jdrumgoole/degiro_portfolio/issues) page to report the problem
 3. Include these details when asking for help:
    - What you were trying to do
    - What happened instead

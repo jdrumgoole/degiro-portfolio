@@ -22,8 +22,8 @@ All data is stored securely on your own computer - nothing is sent to external s
 *Your portfolio at a glance with live prices and performance charts*
 
 ### Individual Stock View
-![Stock Detail - Microsoft](screenshots/stock-detail-microsoft.png)
-*Detailed charts showing price history, your buy/sell transactions, and market comparison*
+![Stock Detail - NVIDIA](screenshots/stock-detail-nvidia.png)
+*Detailed charts showing NVIDIA price history, buy transactions, position value %, and market comparison*
 
 ## Installation
 

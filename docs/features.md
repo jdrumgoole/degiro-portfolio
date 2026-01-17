@@ -144,8 +144,8 @@ Click any stock card to see detailed charts for that stock.
 
 ## Understanding the Charts
 
-![Stock Detail View](../screenshots/stock-detail-microsoft.png)
-*Detailed stock view showing multiple chart types and investment performance*
+![Stock Detail View](../screenshots/stock-detail-nvidia.png)
+*NVIDIA stock detail showing price chart with buy transactions, position value %, investment tranches, and market comparison*
 
 When you click on any stock card, you'll see four interactive charts:
 
