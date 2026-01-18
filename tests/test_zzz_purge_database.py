@@ -6,13 +6,28 @@ test database having data.
 """
 
 import pytest
-from playwright.sync_api import Page
+from playwright.sync_api import Page, BrowserContext
 
 
-def test_purge_database_deletes_all_data(page: Page, base_url):
+@pytest.fixture
+def purge_page(context: BrowserContext, server_process):
+    """Page fixture for purge tests - doesn't wait for stock cards.
+
+    After purging, there are no stock cards, so we can't use the standard
+    page fixture which waits for .stock-card to appear.
+    """
+    page = context.new_page()
+    page.goto(server_process, timeout=10000)
+    # Just wait for the page to be interactive, not for specific content
+    page.wait_for_load_state("domcontentloaded", timeout=10000)
+    yield page
+    page.close()
+
+
+def test_purge_database_deletes_all_data(purge_page: Page, base_url):
     """Test that the purge database endpoint deletes all data."""
     # First, verify we have data in the database
-    holdings_response = page.request.get(f"{base_url}/api/holdings")
+    holdings_response = purge_page.request.get(f"{base_url}/api/holdings")
     assert holdings_response.ok
     initial_holdings = holdings_response.json()["holdings"]
     initial_stock_count = len(initial_holdings)
@@ -25,7 +40,7 @@ def test_purge_database_deletes_all_data(page: Page, base_url):
     assert initial_transaction_count > 0, "Test database should have transactions before purge"
 
     # Call the purge endpoint
-    purge_response = page.request.post(f"{base_url}/api/purge-database")
+    purge_response = purge_page.request.post(f"{base_url}/api/purge-database")
     assert purge_response.ok, f"Purge API returned {purge_response.status}"
 
     purge_result = purge_response.json()
@@ -46,7 +61,7 @@ def test_purge_database_deletes_all_data(page: Page, base_url):
     assert deleted["index_prices"] >= 0, "Should report index_prices count"
 
     # Verify all data is actually gone - check holdings endpoint returns empty
-    holdings_after_purge = page.request.get(f"{base_url}/api/holdings")
+    holdings_after_purge = purge_page.request.get(f"{base_url}/api/holdings")
     assert holdings_after_purge.ok
     final_holdings = holdings_after_purge.json()["holdings"]
 
@@ -54,16 +69,20 @@ def test_purge_database_deletes_all_data(page: Page, base_url):
         f"After purge, should have 0 holdings, but got {len(final_holdings)}"
 
 
-def test_purge_database_handles_already_empty_database(page: Page, base_url):
+def test_purge_database_handles_already_empty_database(purge_page: Page, base_url):
     """Test that purging an already empty database works without error."""
-    # This test runs after the previous purge test, so database should be empty
-    purge_response = page.request.post(f"{base_url}/api/purge-database")
+    # First, purge to ensure the database is empty (works with parallel testing)
+    first_purge = purge_page.request.post(f"{base_url}/api/purge-database")
+    assert first_purge.ok, "First purge should succeed"
+
+    # Now purge again - this tests the empty database case
+    purge_response = purge_page.request.post(f"{base_url}/api/purge-database")
     assert purge_response.ok
 
     purge_result = purge_response.json()
     assert purge_result["success"] is True
 
-    # All counts should be 0
+    # All counts should be 0 since database was already empty
     deleted = purge_result["deleted"]
     assert deleted["stocks"] == 0
     assert deleted["transactions"] == 0
