@@ -1,6 +1,6 @@
 [project]
 name = "degiro-portfolio"
-version = "0.3.5"
+version = "0.3.6"
 description = "DEGIRO portfolio tracking and visualization application"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -43,4 +43,15 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
 asyncio_mode = "auto"
-addopts = "-v --tb=short"
+# Run tests in parallel using pytest-xdist
+# Master DB created once, then copied for each worker (no API calls during tests)
+# Each worker gets its own isolated database and server port
+# Use -n auto for maximum parallelism, -n 0 for serial execution
+addopts = "-v --tb=short -n 4"
+
+[dependency-groups]
+dev = [
+    "filelock>=3.20.3",
+    "pytest-mock>=3.15.1",
+    "pytest-xdist>=3.8.0",
+]

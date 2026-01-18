@@ -23,6 +23,24 @@ def test_root_endpoint_returns_html(client):
     assert b"DEGIRO Portfolio" in response.content
 
 
+def test_ping_endpoint(client):
+    """Test ping health check endpoint."""
+    response = client.get("/api/ping")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Check required fields
+    assert data["status"] == "ok"
+    assert data["server"] == "DEGIRO Portfolio"
+    assert "version" in data
+    assert "started" in data
+    assert "uptime_seconds" in data
+    assert "uptime" in data
+
+    # Check uptime is a positive number
+    assert data["uptime_seconds"] >= 0
+
+
 def test_holdings_endpoint(client):
     """Test holdings API endpoint."""
     response = client.get("/api/holdings")
@@ -146,10 +164,27 @@ def test_refresh_live_prices_endpoint(client):
     assert isinstance(data, dict)
 
 
-def test_ensure_indices_exist_function():
+def test_ensure_indices_exist_function(mocker):
     """Test the ensure_indices_exist helper function."""
     from degiro_portfolio.main import ensure_indices_exist, INDICES
     from degiro_portfolio.database import SessionLocal, Index, IndexPrice
+    import pandas as pd
+    from datetime import datetime, timedelta
+
+    # Create mock price data
+    dates = pd.date_range(end=datetime.now(), periods=100, freq='D')
+    mock_history = pd.DataFrame({
+        'Open': [100.0] * 100,
+        'High': [101.0] * 100,
+        'Low': [99.0] * 100,
+        'Close': [100.5] * 100,
+        'Volume': [1000000] * 100
+    }, index=dates)
+
+    # Mock yfinance Ticker to avoid real API calls
+    mock_ticker = mocker.MagicMock()
+    mock_ticker.history.return_value = mock_history
+    mocker.patch('yfinance.Ticker', return_value=mock_ticker)
 
     db = SessionLocal()
     try:

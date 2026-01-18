@@ -790,11 +790,17 @@
         let serverOnline = null;  // null = unknown, true = online, false = offline
         let failureCount = 0;     // Track consecutive failures
         const FAILURE_THRESHOLD = 3;  // Require 3 consecutive failures before marking offline
+        let uploadInProgress = false;  // Skip server checks during uploads
 
         // Server connectivity check
         let serverCheckInterval = null;
 
         async function checkServerStatus() {
+            // Skip automatic checks during uploads to prevent false offline detection
+            if (uploadInProgress) {
+                return serverOnline !== false;  // Return current status
+            }
+
             const serverUrl = window.location.origin;
             const urlDisplay = document.getElementById('server-url');
             const statusIndicator = document.getElementById('server-status-indicator');
@@ -806,17 +812,21 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000);  // 10 second timeout
 
-                const response = await fetch('/api/market-data-status', { signal: controller.signal });
+                const response = await fetch('/api/ping', { signal: controller.signal });
                 clearTimeout(timeoutId);
 
                 if (response.ok) {
+                    const data = await response.json();
+
                     // Reset failure count on success
                     failureCount = 0;
 
                     // Check if server was previously offline (not initial load)
                     const wasOffline = serverOnline === false;
                     serverOnline = true;
-                    statusIndicator.innerHTML = '<span style="color: #48bb78;">● Online</span>';
+
+                    // Show server status with uptime
+                    statusIndicator.innerHTML = `<span style="color: #48bb78;">● Online</span> <span style="color: #a0aec0; font-size: 0.9em;">(uptime: ${data.uptime})</span>`;
                     offlineBanner.style.display = 'none';
                     setButtonsEnabled(true);
 
@@ -1957,6 +1967,9 @@
             let progressInterval;
             let currentProgress = 0;
 
+            // Pause server status checks during upload
+            uploadInProgress = true;
+
             try {
                 // Show initial progress
                 showUploadProgress('📤 Uploading file...', 10);
@@ -2010,13 +2023,20 @@
             } catch (error) {
                 clearInterval(progressInterval);
                 hideUploadProgress();
+                // Resume server status checks
+                uploadInProgress = false;
                 // Check if server went offline
                 const isOnline = await checkServerStatus();
                 if (!isOnline) {
+                    // Reset file input before returning
+                    e.target.value = '';
                     return;
                 }
                 showUploadStatus('Error uploading file: ' + error.message, false);
             }
+
+            // Resume server status checks (in case of success path without page reload)
+            uploadInProgress = false;
 
             // Reset file input
             e.target.value = '';
@@ -2050,6 +2070,9 @@
 
         // Update market data function
         async function updateMarketData() {
+            // Pause server status checks during market data update
+            uploadInProgress = true;
+
             try {
                 showUploadStatus('📊 Fetching latest market data...', true);
 
@@ -2066,9 +2089,13 @@
                         window.location.reload();
                     }, 3000);
                 } else {
+                    // Resume server status checks on non-success response
+                    uploadInProgress = false;
                     showUploadStatus('❌ ' + result.message, false);
                 }
             } catch (error) {
+                // Resume server status checks
+                uploadInProgress = false;
                 // Check if server went offline
                 const isOnline = await checkServerStatus();
                 if (!isOnline) {
@@ -2140,6 +2167,9 @@
                 `,
                 '🗑️',
                 async () => {
+                    // Pause server status checks during purge
+                    uploadInProgress = true;
+
                     try {
                         showUploadStatus('🗑️ Purging database...', true);
 
@@ -2167,9 +2197,13 @@
                                 window.location.reload();
                             }, 3000);
                         } else {
+                            // Resume server status checks on failure
+                            uploadInProgress = false;
                             showUploadStatus('❌ ' + result.message, false);
                         }
                     } catch (error) {
+                        // Resume server status checks
+                        uploadInProgress = false;
                         // Check if server went offline
                         const isOnline = await checkServerStatus();
                         if (!isOnline) {

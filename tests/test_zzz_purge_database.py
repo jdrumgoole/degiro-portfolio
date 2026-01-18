@@ -9,10 +9,10 @@ import pytest
 from playwright.sync_api import Page
 
 
-def test_purge_database_deletes_all_data(page: Page):
+def test_purge_database_deletes_all_data(page: Page, base_url):
     """Test that the purge database endpoint deletes all data."""
     # First, verify we have data in the database
-    holdings_response = page.request.get("http://127.0.0.1:8001/api/holdings")
+    holdings_response = page.request.get(f"{base_url}/api/holdings")
     assert holdings_response.ok
     initial_holdings = holdings_response.json()["holdings"]
     initial_stock_count = len(initial_holdings)
@@ -25,7 +25,7 @@ def test_purge_database_deletes_all_data(page: Page):
     assert initial_transaction_count > 0, "Test database should have transactions before purge"
 
     # Call the purge endpoint
-    purge_response = page.request.post("http://127.0.0.1:8001/api/purge-database")
+    purge_response = page.request.post(f"{base_url}/api/purge-database")
     assert purge_response.ok, f"Purge API returned {purge_response.status}"
 
     purge_result = purge_response.json()
@@ -46,7 +46,7 @@ def test_purge_database_deletes_all_data(page: Page):
     assert deleted["index_prices"] >= 0, "Should report index_prices count"
 
     # Verify all data is actually gone - check holdings endpoint returns empty
-    holdings_after_purge = page.request.get("http://127.0.0.1:8001/api/holdings")
+    holdings_after_purge = page.request.get(f"{base_url}/api/holdings")
     assert holdings_after_purge.ok
     final_holdings = holdings_after_purge.json()["holdings"]
 
@@ -54,10 +54,10 @@ def test_purge_database_deletes_all_data(page: Page):
         f"After purge, should have 0 holdings, but got {len(final_holdings)}"
 
 
-def test_purge_database_handles_already_empty_database(page: Page):
+def test_purge_database_handles_already_empty_database(page: Page, base_url):
     """Test that purging an already empty database works without error."""
     # This test runs after the previous purge test, so database should be empty
-    purge_response = page.request.post("http://127.0.0.1:8001/api/purge-database")
+    purge_response = page.request.post(f"{base_url}/api/purge-database")
     assert purge_response.ok
 
     purge_result = purge_response.json()

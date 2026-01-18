@@ -75,13 +75,45 @@ def ensure_indices_exist(db: Session) -> tuple[int, int]:
     return indices_created, prices_fetched
 
 
-app = FastAPI(title="DEGIRO Portfolio", version="0.3.0")
+app = FastAPI(title="DEGIRO Portfolio", version="0.3.5")
+
+# Track server start time
+SERVER_START_TIME = datetime.now()
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on application startup."""
     init_db()
+
+
+@app.get("/api/ping")
+async def ping():
+    """Health check endpoint returning server name and uptime."""
+    uptime_seconds = (datetime.now() - SERVER_START_TIME).total_seconds()
+
+    # Format uptime as human-readable string
+    days, remainder = divmod(int(uptime_seconds), 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    if days > 0:
+        uptime_str = f"{days}d {hours}h {minutes}m {seconds}s"
+    elif hours > 0:
+        uptime_str = f"{hours}h {minutes}m {seconds}s"
+    elif minutes > 0:
+        uptime_str = f"{minutes}m {seconds}s"
+    else:
+        uptime_str = f"{seconds}s"
+
+    return {
+        "status": "ok",
+        "server": "DEGIRO Portfolio",
+        "version": app.version,
+        "started": SERVER_START_TIME.isoformat(),
+        "uptime_seconds": uptime_seconds,
+        "uptime": uptime_str
+    }
 
 
 # Mount static files
@@ -461,22 +493,38 @@ async def get_chart_data(stock_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/portfolio-performance")
 async def get_portfolio_performance(db: Session = Depends(get_db)):
-    """Get percentage return performance for all currently held stocks."""
-    stocks = db.query(Stock).all()
+    """Get percentage return performance for all currently held stocks.
+
+    Optimized to fetch all data in bulk queries.
+    """
+    from collections import defaultdict
+
+    # Fetch all data in bulk
+    stocks = {s.id: s for s in db.query(Stock).all()}
+    all_transactions = db.query(Transaction).order_by(Transaction.date).all()
+    all_prices = db.query(StockPrice).order_by(StockPrice.date).all()
+
+    # Group transactions by stock
+    trans_by_stock = defaultdict(list)
+    holdings_by_stock = defaultdict(int)
+    for t in all_transactions:
+        trans_by_stock[t.stock_id].append(t)
+        holdings_by_stock[t.stock_id] += t.quantity
+
+    # Group prices by stock
+    prices_by_stock = defaultdict(list)
+    for p in all_prices:
+        prices_by_stock[p.stock_id].append(p)
 
     portfolio_data = []
 
-    for stock in stocks:
-        # Check if currently held
-        total_qty = db.query(func.sum(Transaction.quantity)).filter_by(
-            stock_id=stock.id
-        ).scalar() or 0
+    for stock_id, stock in stocks.items():
+        total_qty = holdings_by_stock.get(stock_id, 0)
 
         if total_qty <= 0:
             continue
 
-        # Get all transactions for this stock
-        transactions = db.query(Transaction).filter_by(stock_id=stock.id).order_by(Transaction.date).all()
+        transactions = trans_by_stock.get(stock_id, [])
 
         # Calculate weighted average cost for currently held shares
         buy_transactions = [t for t in transactions if t.quantity > 0]
@@ -491,8 +539,8 @@ async def get_portfolio_performance(db: Session = Depends(get_db)):
 
         avg_cost_per_share = total_spent / total_shares_bought
 
-        # Get price history
-        prices = db.query(StockPrice).filter_by(stock_id=stock.id).order_by(StockPrice.date).all()
+        # Get price history (already sorted by date)
+        prices = prices_by_stock.get(stock_id, [])
 
         if not prices:
             continue
@@ -525,22 +573,30 @@ async def get_portfolio_valuation_history(db: Session = Depends(get_db)):
     Get historical portfolio valuation over time.
     Returns dates, net invested capital (buys - sells), and portfolio values (all in EUR).
     Shows only from the first purchase of currently held stocks.
+
+    Optimized to pre-fetch all data and calculate incrementally.
     """
+    from datetime import datetime
+    from collections import defaultdict
+
     # Get all transactions ordered by date
     all_transactions = db.query(Transaction).order_by(Transaction.date).all()
 
     if not all_transactions:
         return {"dates": [], "invested": [], "values": []}
 
-    # Get all stocks
-    stocks = db.query(Stock).all()
+    # Get all stocks as a dict for quick lookup
+    stocks = {s.id: s for s in db.query(Stock).all()}
+
+    # Group transactions by stock and calculate current holdings
+    trans_by_stock = defaultdict(list)
+    current_holdings = defaultdict(int)
+    for t in all_transactions:
+        trans_by_stock[t.stock_id].append(t)
+        current_holdings[t.stock_id] += t.quantity
 
     # Find stocks with current holdings > 0
-    current_stock_ids = set()
-    for stock in stocks:
-        total_qty = sum(t.quantity for t in all_transactions if t.stock_id == stock.id)
-        if total_qty > 0:
-            current_stock_ids.add(stock.id)
+    current_stock_ids = {sid for sid, qty in current_holdings.items() if qty > 0}
 
     if not current_stock_ids:
         return {"dates": [], "invested": [], "values": []}
@@ -550,7 +606,7 @@ async def get_portfolio_valuation_history(db: Session = Depends(get_db)):
         t.date for t in all_transactions if t.stock_id in current_stock_ids
     )
 
-    # Get all unique dates from price history after first transaction of current holdings
+    # Get all unique dates from price history after first transaction
     price_dates = db.query(StockPrice.date).filter(
         StockPrice.date >= first_trans_date
     ).distinct().order_by(StockPrice.date).all()
@@ -558,84 +614,101 @@ async def get_portfolio_valuation_history(db: Session = Depends(get_db)):
     if not price_dates:
         return {"dates": [], "invested": [], "values": []}
 
-    # Always include today's date to ensure the chart extends to the present
-    from datetime import datetime
-    today = datetime.now().date()
-    existing_dates = {pd[0].date() for pd in price_dates}
+    # Convert to list of dates
+    date_list = [pd[0] for pd in price_dates]
 
-    # Add today if it's not already in the list and it's after the last price date
-    if today not in existing_dates and today > price_dates[-1][0].date():
-        price_dates.append((datetime.combine(today, datetime.min.time()),))
+    # Add today if not present
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    if today > date_list[-1]:
+        date_list.append(today)
 
-    # Group transactions by stock for efficient lookup
-    trans_by_stock = {}
+    # Pre-fetch ALL prices into memory - keyed by (stock_id, date)
+    all_prices = db.query(StockPrice).filter(
+        StockPrice.date >= first_trans_date
+    ).all()
+
+    # Build price lookup: for each stock, sorted list of (date, price, currency)
+    price_by_stock = defaultdict(list)
+    for p in all_prices:
+        price_by_stock[p.stock_id].append((p.date, p.close, p.currency))
+
+    # Sort prices by date for each stock
+    for stock_id in price_by_stock:
+        price_by_stock[stock_id].sort(key=lambda x: x[0])
+
+    # Pre-compute exchange rates by stock (most recent rate from transactions)
+    exchange_rates_by_stock = {}
+    for stock_id, trans_list in trans_by_stock.items():
+        for t in reversed(trans_list):
+            if t.exchange_rate:
+                exchange_rates_by_stock[stock_id] = t.exchange_rate
+                break
+
+    # Build transaction events sorted by date for incremental calculation
+    # Each event: (date, stock_id, quantity_delta, invested_delta)
+    trans_events = []
     for t in all_transactions:
-        if t.stock_id not in trans_by_stock:
-            trans_by_stock[t.stock_id] = []
-        trans_by_stock[t.stock_id].append(t)
+        if t.stock_id in current_stock_ids:
+            invested_delta = abs(t.total_eur) if t.quantity > 0 else -abs(t.total_eur)
+            trans_events.append((t.date, t.stock_id, t.quantity, invested_delta))
+    trans_events.sort(key=lambda x: x[0])
 
+    # Calculate series incrementally
     dates = []
     invested_series = []
     value_series = []
 
-    for (price_date,) in price_dates:
-        # Calculate net invested (buys minus sells) for CURRENTLY HELD stocks only
-        buys = sum(
-            abs(t.total_eur)
-            for t in all_transactions
-            if t.date <= price_date and t.quantity > 0 and t.stock_id in current_stock_ids
-        )
-        sells = sum(
-            abs(t.total_eur)
-            for t in all_transactions
-            if t.date <= price_date and t.quantity < 0 and t.stock_id in current_stock_ids
-        )
-        net_invested = buys - sells
+    # Running state
+    running_invested = 0.0
+    running_holdings = defaultdict(int)  # stock_id -> quantity
+    event_idx = 0
 
-        # Calculate portfolio value
-        total_value_eur = 0
+    for price_date in date_list:
+        # Process all transactions up to this date
+        while event_idx < len(trans_events) and trans_events[event_idx][0] <= price_date:
+            _, stock_id, qty_delta, inv_delta = trans_events[event_idx]
+            running_holdings[stock_id] += qty_delta
+            running_invested += inv_delta
+            event_idx += 1
 
-        for stock in stocks:
-            # Calculate holdings for this stock at this date
-            holdings = sum(
-                t.quantity
-                for t in trans_by_stock.get(stock.id, [])
-                if t.date <= price_date
-            )
+        # Calculate portfolio value using pre-fetched prices
+        total_value_eur = 0.0
 
+        for stock_id, holdings in running_holdings.items():
             if holdings <= 0:
                 continue
 
-            # Get price on or before this date
-            price_record = db.query(StockPrice).filter(
-                StockPrice.stock_id == stock.id,
-                StockPrice.date <= price_date
-            ).order_by(StockPrice.date.desc()).first()
-
-            if not price_record:
+            # Binary search for most recent price <= price_date
+            prices = price_by_stock.get(stock_id, [])
+            if not prices:
                 continue
 
-            # Convert price to EUR using actual exchange currency, not DEGIRO transaction currency
-            if price_record.currency == 'EUR':
-                price_eur = price_record.close
-            else:
-                # Get most recent exchange rate from transactions
-                exchange_rate = None
-                for t in reversed(trans_by_stock.get(stock.id, [])):
-                    if t.date <= price_date and t.exchange_rate:
-                        exchange_rate = t.exchange_rate
-                        break
+            # Find the last price on or before price_date
+            price_close = None
+            price_currency = None
+            for p_date, p_close, p_currency in reversed(prices):
+                if p_date <= price_date:
+                    price_close = p_close
+                    price_currency = p_currency
+                    break
 
+            if price_close is None:
+                continue
+
+            # Convert to EUR if needed
+            if price_currency == 'EUR':
+                price_eur = price_close
+            else:
+                exchange_rate = exchange_rates_by_stock.get(stock_id)
                 if exchange_rate:
-                    price_eur = price_record.close / exchange_rate
+                    price_eur = price_close / exchange_rate
                 else:
-                    # Fallback: treat as EUR equivalent
-                    price_eur = price_record.close
+                    price_eur = price_close  # Fallback
 
             total_value_eur += holdings * price_eur
 
         dates.append(price_date.strftime("%Y-%m-%d"))
-        invested_series.append(round(net_invested, 2))
+        invested_series.append(round(running_invested, 2))
         value_series.append(round(total_value_eur, 2))
 
     return {
